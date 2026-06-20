@@ -1,0 +1,44 @@
+{
+  "name": "@enpal/mcp",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Enpal Smart Energy Companion — Skybridge MCP server",
+  "type": "module",
+  "scripts": {
+    "dev": "skybridge dev",
+    "dev:tunnel": "skybridge dev --tunnel",
+    "build": "skybridge build",
+    "start": "skybridge start",
+    "typecheck": "skybridge build",
+    "deploy": "alpic deploy"
+  },
+  "dependencies": {
+    "@alpic-ai/ui": "^1.0.0",
+    "@enpal/db": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "dotenv": "^16.4.7",
+    "lucide-react": "^0.469.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "recharts": "^2.15.0",
+    "skybridge": "^1.1.1",
+    "tw-animate-css": "^1.2.5",
+    "vite": "^8.0.3",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@skybridge/devtools": "^1.0.0",
+    "@tailwindcss/vite": "^4.0.0",
+    "@types/node": "^24.12.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "alpic": "^1.104.1",
+    "tailwindcss": "^4.0.0",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.2"
+  },
+  "engines": {
+    "node": ">=24.14.1"
+  }
+}
