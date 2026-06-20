@@ -235,13 +235,14 @@ function dayPhase(progress: number, riseIdx: number, setIdx: number) {
   return Math.sin(t * Math.PI); // peaks at midday
 }
 
-export function EnergyFlow({
-  householdId,
-  onLiveChange,
-}: {
-  householdId: string;
-  onLiveChange?: (live: LiveSnapshot | null) => void;
-}) {
+// Shared live-timeline state: one source of truth for the diagram and the
+// (now full-width) timeline so they stay perfectly in sync.
+export type EnergyTimeline = ReturnType<typeof useEnergyTimeline>;
+
+export function useEnergyTimeline(
+  householdId: string,
+  onLiveChange?: (live: LiveSnapshot | null) => void,
+) {
   const household = trpc.households.byId.useQuery(householdId);
   const days = trpc.energy.availableDays.useQuery({ householdId });
 
@@ -367,21 +368,6 @@ export function EnergyFlow({
     });
   }, [onLiveChange, current, priceBands, progress, balance]);
 
-  const hasHeatPump = household.data?.heatPump ?? false;
-  const hasEv = household.data?.evCharger ?? false;
-
-  const edges = useMemo(
-    () => (current ? buildEdges(current, hasHeatPump, hasEv) : []),
-    [current, hasHeatPump, hasEv],
-  );
-
-  const visibleNodes = useMemo(() => {
-    const keys: NodeKey[] = ["pv", "grid", "battery", "house"];
-    if (hasHeatPump) keys.push("heatpump");
-    if (hasEv) keys.push("ev");
-    return keys;
-  }, [hasHeatPump, hasEv]);
-
   // Sunrise/sunset derived from PV activity (no dedicated solar field).
   const sun = useMemo(() => {
     const first = steps.findIndex((s) => s.pv > PV_ON);
@@ -401,7 +387,8 @@ export function EnergyFlow({
     };
   }, [steps]);
 
-  const pct = (i: number) => (steps.length > 1 ? (i / (steps.length - 1)) * 100 : 0);
+  const pct = (i: number) =>
+    steps.length > 1 ? (i / (steps.length - 1)) * 100 : 0;
 
   const scrubTo = (clientX: number, el: HTMLElement) => {
     const rect = el.getBoundingClientRect();
@@ -410,13 +397,57 @@ export function EnergyFlow({
     setProgress(ratio * (steps.length - 1));
   };
 
-  if (!activeDay || !intraday.data) {
-    return <div className="h-[520px] animate-pulse rounded-xl bg-muted" />;
-  }
+  return {
+    household,
+    days,
+    activeDay,
+    setDay,
+    intraday,
+    steps,
+    progress,
+    setProgress,
+    playing,
+    setPlaying,
+    speed,
+    setSpeed,
+    current,
+    balance,
+    sun,
+    pct,
+    scrubTo,
+  };
+}
 
-  const activeDate = parse(activeDay, "yyyy-MM-dd", new Date());
-  const minDate = days.data?.min ? parse(days.data.min, "yyyy-MM-dd", new Date()) : undefined;
-  const maxDate = days.data?.max ? parse(days.data.max, "yyyy-MM-dd", new Date()) : undefined;
+export function EnergyFlow({ timeline }: { timeline: EnergyTimeline }) {
+  const {
+    household,
+    days,
+    activeDay,
+    setDay,
+    intraday,
+    progress,
+    current,
+    sun,
+  } = timeline;
+
+  const hasHeatPump = household.data?.heatPump ?? false;
+  const hasEv = household.data?.evCharger ?? false;
+
+  const edges = useMemo(
+    () => (current ? buildEdges(current, hasHeatPump, hasEv) : []),
+    [current, hasHeatPump, hasEv],
+  );
+
+  const visibleNodes = useMemo(() => {
+    const keys: NodeKey[] = ["pv", "grid", "battery", "house"];
+    if (hasHeatPump) keys.push("heatpump");
+    if (hasEv) keys.push("ev");
+    return keys;
+  }, [hasHeatPump, hasEv]);
+
+  if (!activeDay || !intraday.data) {
+    return <div className="h-[360px] animate-pulse rounded-xl bg-muted" />;
+  }
 
   const phase = sun ? dayPhase(progress, sun.riseIdx, sun.setIdx) : 0;
   const isNight = phase < 0.04;
@@ -441,41 +472,14 @@ export function EnergyFlow({
   return (
     <div className="relative overflow-hidden rounded-xl">
       {/* Header */}
-      <div className="flex flex-wrap items-end justify-between gap-3 px-5 pt-5">
-        <div>
-          <h2 className="text-sm font-medium text-muted-foreground">Live energy flow</h2>
-          <p className="mt-0.5 text-2xl font-semibold tabular-nums tracking-tight">
-            <span className="font-mono">{clock}</span>
-            <span className="ml-2 align-middle text-sm font-normal text-muted-foreground">
-              {isNight ? "Night" : phase > 0.7 ? "Midday sun" : "Daylight"}
-            </span>
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm">
-                <CalendarDays />
-                {format(activeDate, "EEE, d MMM yyyy")}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
-              <Calendar
-                mode="single"
-                selected={activeDate}
-                defaultMonth={activeDate}
-                startMonth={minDate}
-                endMonth={maxDate}
-                disabled={[
-                  ...(minDate ? [{ before: minDate }] : []),
-                  ...(maxDate ? [{ after: maxDate }] : []),
-                ]}
-                onSelect={(d) => d && setDay(format(d, "yyyy-MM-dd"))}
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
+      <div className="px-5 pt-5">
+        <h2 className="text-sm font-medium text-muted-foreground">Live energy flow</h2>
+        <p className="mt-0.5 text-2xl font-semibold tabular-nums tracking-tight">
+          <span className="font-mono">{clock}</span>
+          <span className="ml-2 align-middle text-sm font-normal text-muted-foreground">
+            {isNight ? "Night" : phase > 0.7 ? "Midday sun" : "Daylight"}
+          </span>
+        </p>
       </div>
 
       {/* Diagram */}
@@ -654,9 +658,76 @@ export function EnergyFlow({
           })}
         </svg>
       </div>
+    </div>
+  );
+}
 
-      {/* Timeline: sunrise → sunset, scrubbable */}
-      <div className="px-5 pt-4 pb-5">
+// Day selector, surfaced separately so it can live next to the section heading.
+export function EnergyDayPicker({ timeline }: { timeline: EnergyTimeline }) {
+  const { activeDay, setDay, days } = timeline;
+  if (!activeDay) return null;
+
+  const activeDate = parse(activeDay, "yyyy-MM-dd", new Date());
+  const minDate = days.data?.min
+    ? parse(days.data.min, "yyyy-MM-dd", new Date())
+    : undefined;
+  const maxDate = days.data?.max
+    ? parse(days.data.max, "yyyy-MM-dd", new Date())
+    : undefined;
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm">
+          <CalendarDays />
+          {format(activeDate, "EEE, d MMM yyyy")}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="end">
+        <Calendar
+          mode="single"
+          selected={activeDate}
+          defaultMonth={activeDate}
+          startMonth={minDate}
+          endMonth={maxDate}
+          disabled={[
+            ...(minDate ? [{ before: minDate }] : []),
+            ...(maxDate ? [{ after: maxDate }] : []),
+          ]}
+          onSelect={(d) => d && setDay(format(d, "yyyy-MM-dd"))}
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// Full-width timeline: scrubbable day/night bar with sunrise/sunset times under
+// their icons, and playback + speed controls to its right. Shares the diagram's
+// live state via the timeline hook.
+export function EnergyTimelineBar({ timeline }: { timeline: EnergyTimeline }) {
+  const {
+    steps,
+    progress,
+    setProgress,
+    playing,
+    setPlaying,
+    speed,
+    setSpeed,
+    sun,
+    pct,
+    scrubTo,
+  } = timeline;
+
+  const clock = formatMinutes(progress);
+
+  if (steps.length === 0) {
+    return <div className="h-8 animate-pulse rounded-lg bg-muted" />;
+  }
+
+  return (
+    <div className="flex flex-wrap items-start gap-4 px-5 py-4 sm:flex-nowrap">
+      {/* Bar + sunrise/sunset labels beneath the markers. */}
+      <div className="min-w-0 flex-1">
         <div
           role="slider"
           aria-label="Time of day"
@@ -687,7 +758,7 @@ export function EnergyFlow({
               setProgress((p) => Math.min(steps.length - 1, Math.round(p) + 1));
             }
           }}
-          className="group relative h-8 cursor-pointer touch-none overflow-hidden rounded-lg border border-border select-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          className="group relative h-8 w-full cursor-pointer touch-none overflow-hidden rounded-lg border border-border select-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
           {/* Day/night gradient */}
           <div
@@ -703,7 +774,7 @@ export function EnergyFlow({
                 : "var(--card)",
             }}
           />
-          {/* Sun markers */}
+          {/* Sun marker lines + icons */}
           {sun &&
             (
               [
@@ -733,44 +804,54 @@ export function EnergyFlow({
           </div>
         </div>
 
-        {/* Controls + sun times */}
-        <div className="mt-2.5 flex items-center gap-3">
-          <Button
-            variant="default"
-            size="icon-sm"
-            onClick={() => setPlaying((p) => !p)}
-            aria-label={playing ? "Pause" : "Play"}
-          >
-            {playing ? <Pause /> : <Play />}
-          </Button>
-
-          <div className="flex gap-0.5 rounded-md border border-border p-0.5">
-            {SPEEDS.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setSpeed(s)}
-                className={`rounded px-2 py-0.5 text-xs font-medium tabular-nums transition-colors ${
-                  speed === s
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+        {/* Sunrise/sunset times aligned under their icons. */}
+        {sun && (
+          <div className="relative mt-1.5 h-4">
+            {(
+              [
+                { idx: sun.riseIdx, time: sun.riseTime },
+                { idx: sun.setIdx, time: sun.setTime },
+              ] as const
+            ).map(({ idx, time }, i) => (
+              <span
+                key={i}
+                className="absolute -translate-x-1/2 text-[11px] text-muted-foreground tabular-nums"
+                style={{ left: `${pct(idx)}%` }}
               >
-                {s}×
-              </button>
+                {time}
+              </span>
             ))}
           </div>
+        )}
+      </div>
 
-          {sun && (
-            <div className="ml-auto flex items-center gap-3 text-xs text-muted-foreground tabular-nums">
-              <span className="flex items-center gap-1">
-                <Sunrise size={13} /> {sun.riseTime}
-              </span>
-              <span className="flex items-center gap-1">
-                <Sunset size={13} /> {sun.setTime}
-              </span>
-            </div>
-          )}
+      {/* Playback + speed controls — to the right of the bar, height-matched. */}
+      <div className="flex shrink-0 items-center gap-2">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => setPlaying((p) => !p)}
+          aria-label={playing ? "Pause" : "Play"}
+        >
+          {playing ? <Pause /> : <Play />}
+        </Button>
+
+        <div className="flex h-8 items-center gap-0.5 rounded-lg border border-border bg-muted/40 p-0.5">
+          {SPEEDS.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setSpeed(s)}
+              aria-pressed={speed === s}
+              className={`h-full rounded-md px-2.5 text-xs font-medium tabular-nums transition-colors ${
+                speed === s
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {s}×
+            </button>
+          ))}
         </div>
       </div>
     </div>
