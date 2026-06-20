@@ -60,7 +60,7 @@ export function BillsChart({ householdId }: { householdId: string }) {
           type="monotone"
           dataKey="selfSufficiency"
           name="Self-sufficiency (%)"
-          stroke="var(--accent)"
+          stroke="var(--brand)"
           strokeWidth={2}
           dot={false}
         />

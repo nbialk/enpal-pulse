@@ -36,7 +36,7 @@ export function InsightsFeed({ householdId }: { householdId: string }) {
             <span className="text-sm font-medium">{i.title}</span>
           </div>
           <p className="mt-1.5 text-sm text-muted-foreground">{i.detail}</p>
-          <p className="mt-1.5 text-xs text-accent">→ {i.suggestedAction}</p>
+          <p className="mt-1.5 text-xs text-brand">→ {i.suggestedAction}</p>
         </li>
       ))}
     </ul>

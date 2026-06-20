@@ -70,10 +70,43 @@ export const energyRouter = router({
         time: r.timestamp.toISOString().slice(11, 16),
         pv: r.pvProductionKw,
         consumption: r.totalConsumptionKw,
+        houseLoad: r.houseLoadKw,
+        heatpump: r.heatpumpKw,
+        ev: r.evChargingKw,
         gridImport: r.gridImportKw,
         gridExport: r.gridExportKw,
+        batteryCharge: r.batteryChargeKw,
+        batteryDischarge: r.batteryDischargeKw,
+        socKwh: r.batterySocKwh,
         soc: r.batterySocPct,
         price: r.priceEurPerKwh,
       }));
+    }),
+
+  // Date range available in the dataset + the sunniest day (highest PV) as a default.
+  availableDays: publicProcedure
+    .input(z.object({ householdId: z.string() }))
+    .query(async ({ input }) => {
+      const rows = await prisma.$queryRaw<
+        { min_day: Date | null; max_day: Date | null; best_day: Date | null }[]
+      >`
+        WITH daily AS (
+          SELECT date_trunc('day', timestamp) AS day, SUM(pv_production_kw) AS pv
+          FROM energy_records
+          WHERE household_id = ${input.householdId}
+          GROUP BY day
+        )
+        SELECT
+          (SELECT MIN(day) FROM daily) AS min_day,
+          (SELECT MAX(day) FROM daily) AS max_day,
+          (SELECT day FROM daily ORDER BY pv DESC LIMIT 1) AS best_day
+      `;
+      const row = rows[0];
+      const iso = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : null);
+      return {
+        min: iso(row?.min_day ?? null),
+        max: iso(row?.max_day ?? null),
+        defaultDay: iso(row?.best_day ?? null),
+      };
     }),
 });

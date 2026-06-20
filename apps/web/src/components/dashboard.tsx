@@ -4,6 +4,7 @@ import { trpc } from "@/lib/trpc/client";
 import { Card, Stat } from "@/components/ui/card";
 import { BillsChart } from "@/components/charts/bills-chart";
 import { EnergyChart } from "@/components/charts/energy-chart";
+import { EnergyFlow } from "@/components/charts/energy-flow";
 import { InsightsFeed } from "@/components/insights-feed";
 
 export function Dashboard({ householdId }: { householdId: string }) {
@@ -34,6 +35,10 @@ export function Dashboard({ householdId }: { householdId: string }) {
           unit={household.data?.batteryKwh ? "kWh" : undefined}
         />
       </div>
+
+      <Card title="Live energy flow">
+        <EnergyFlow householdId={householdId} />
+      </Card>
 
       <Card title="Monthly bills & self-sufficiency">
         <BillsChart householdId={householdId} />
