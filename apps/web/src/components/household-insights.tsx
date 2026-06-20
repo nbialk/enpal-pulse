@@ -5,6 +5,7 @@ import {
   Battery,
   Gauge,
   Home,
+  PiggyBank,
   Sparkles,
   Sun,
   Zap,
@@ -23,6 +24,21 @@ const PRICE_CONTEXT: Record<string, { label: string; className: string }> = {
   typical: { label: "typical", className: "bg-muted text-muted-foreground" },
   pricey: { label: "pricey", className: "bg-destructive/10 text-destructive" },
 };
+
+// What the household is actually doing right now matters more than the market
+// price. If it draws (almost) nothing from the grid, a high spot price is a win,
+// not a warning — frame it that way.
+const GRID_IDLE_KW = 0.1;
+
+function statusBadge(live: LiveSnapshot) {
+  if (live.gridImportNow < GRID_IDLE_KW) {
+    return {
+      label: live.pvSurplus ? "running on solar" : "running on battery",
+      className: "bg-brand/10 text-brand",
+    };
+  }
+  return live.priceContext ? PRICE_CONTEXT[live.priceContext] : null;
+}
 
 function socColor(pct: number) {
   return pct > 60 ? "var(--brand)" : pct > 25 ? "var(--primary)" : "var(--destructive)";
@@ -97,7 +113,7 @@ function MetricTile({
 
 export function HouseholdInsights({ live }: { live: LiveSnapshot | null }) {
   const balance = live?.balance ?? null;
-  const ctx = live?.priceContext ? PRICE_CONTEXT[live.priceContext] : null;
+  const ctx = live ? statusBadge(live) : null;
 
   return (
     <div className="flex h-full flex-col gap-px bg-border">
@@ -173,6 +189,20 @@ export function HouseholdInsights({ live }: { live: LiveSnapshot | null }) {
                 label="Grid export"
                 accent
               />
+            </div>
+
+            {/* Saved today — high spot prices turn into a bigger win here */}
+            <div className="flex items-center justify-between gap-2 rounded-lg border border-brand/30 bg-brand/5 p-3">
+              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <PiggyBank className="size-3.5 text-brand" />
+                Saved today
+              </span>
+              <span className="text-sm font-semibold tabular-nums text-brand">
+                {num(balance.savedEur, 2)}
+                <span className="ml-0.5 text-xs font-normal text-muted-foreground">
+                  €
+                </span>
+              </span>
             </div>
 
             {/* Self-consumption — the household success metric */}

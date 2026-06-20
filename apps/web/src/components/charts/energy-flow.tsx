@@ -50,6 +50,8 @@ export type LiveSnapshot = {
   priceContext: "cheap" | "typical" | "pricey" | null;
   pvSurplus: boolean;
   batterySocPct: number;
+  // Live grid draw at the cursor (kW). ~0 means the house runs off solar/battery.
+  gridImportNow: number;
   // Energy totals accumulated from midnight up to the cursor position.
   balance: {
     pv: number;
@@ -57,6 +59,8 @@ export type LiveSnapshot = {
     gridImport: number;
     gridExport: number;
     selfConsumption: number;
+    // Euro saved by self-supply: avoided grid draw priced at the spot rate.
+    savedEur: number;
   };
 };
 
@@ -324,6 +328,7 @@ export function useEnergyTimeline(
     const full = Math.floor(progress);
     const frac = progress - full;
     const acc = { pv: 0, consumption: 0, gridImport: 0, gridExport: 0 };
+    let savedEur = 0;
     for (let i = 0; i < steps.length; i++) {
       const weight = i < full ? 1 : i === full ? frac : 0;
       if (weight === 0) break;
@@ -332,6 +337,10 @@ export function useEnergyTimeline(
       acc.consumption += s.consumption * weight;
       acc.gridImport += s.gridImport * weight;
       acc.gridExport += s.gridExport * weight;
+      // House demand met by solar/battery instead of the grid, valued at the
+      // spot price of that interval -> euros not spent on imports.
+      const selfSupplied = Math.max(s.consumption - s.gridImport, 0);
+      savedEur += selfSupplied * 0.25 * s.price * weight;
     }
     const pv = acc.pv * 0.25;
     const gridExport = acc.gridExport * 0.25;
@@ -341,6 +350,7 @@ export function useEnergyTimeline(
       gridImport: acc.gridImport * 0.25,
       gridExport,
       selfConsumption: pv > 0 ? ((pv - gridExport) / pv) * 100 : 0,
+      savedEur,
     };
   }, [steps, progress]);
 
@@ -364,6 +374,7 @@ export function useEnergyTimeline(
       priceContext,
       pvSurplus: current.gridExport > 0.3,
       batterySocPct: current.soc,
+      gridImportNow: current.gridImport,
       balance,
     });
   }, [onLiveChange, current, priceBands, progress, balance]);
@@ -638,7 +649,7 @@ export function EnergyFlow({ timeline }: { timeline: EnergyTimeline }) {
                   fill={valueColor}
                   fontFamily="var(--font-mono)"
                 >
-                  {`${signed < -0.05 ? "−" : ""}${Math.abs(signed).toFixed(1)} kW`}
+                  {`${!isBattery && signed < -0.05 ? "−" : ""}${Math.abs(signed).toFixed(1)} kW`}
                 </text>
 
                 {/* Label */}
