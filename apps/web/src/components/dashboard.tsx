@@ -36,7 +36,7 @@ export function Dashboard({ householdId }: { householdId: string }) {
         />
       </div>
 
-      <Card title="Live energy flow">
+      <Card className="p-0">
         <EnergyFlow householdId={householdId} />
       </Card>
 

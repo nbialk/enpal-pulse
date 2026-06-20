@@ -127,6 +127,13 @@ body {
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
 
+/* Energy-flow particles animate along SVG paths; suppress for reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  .ef-particle {
+    display: none;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
