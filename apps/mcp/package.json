@@ -5,7 +5,7 @@
   "description": "Enpal Smart Energy Companion — Skybridge MCP server",
   "type": "module",
   "scripts": {
-    "dev": "skybridge dev",
+    "dev": "skybridge dev --port 3001 --no-open",
     "dev:tunnel": "skybridge dev --tunnel",
     "build": "skybridge build",
     "start": "skybridge start",

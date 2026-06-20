@@ -10,7 +10,7 @@ import { trpc } from "@/lib/trpc/client";
 
 function getBaseUrl() {
   if (typeof window !== "undefined") return "";
-  return `http://localhost:${process.env.PORT ?? 3001}`;
+  return `http://localhost:${process.env.PORT ?? 3000}`;
 }
 
 export function Providers({ children }: { children: React.ReactNode }) {
