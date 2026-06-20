@@ -15,7 +15,7 @@ import { useLayout } from "skybridge/web";
 import { useToolInfo } from "../helpers.js";
 
 const eur = (n: number) =>
-  new Intl.NumberFormat("de-DE", {
+  new Intl.NumberFormat("en-GB", {
     style: "currency",
     currency: "EUR",
     maximumFractionDigits: 0,
@@ -26,9 +26,9 @@ const signedEur = (n: number) => `${n >= 0 ? "+" : "−"}${eur(Math.abs(n))}`;
 // Consumption-area colors (match daily-energy-flow: house = foreground/primary,
 // heat pump = sky, EV = green).
 const AREAS = [
-  { key: "houseKwh", label: "Hausverbrauch", color: "var(--color-primary)" },
-  { key: "heatpumpKwh", label: "Wärmepumpe", color: "#0ea5e9" },
-  { key: "evKwh", label: "EV-Laden", color: "#16a34a" },
+  { key: "houseKwh", label: "House load", color: "var(--color-primary)" },
+  { key: "heatpumpKwh", label: "Heat pump", color: "#0ea5e9" },
+  { key: "evKwh", label: "EV charging", color: "#16a34a" },
 ] as const;
 
 export default function ExplainBill() {
@@ -45,10 +45,10 @@ export default function ExplainBill() {
     return (
       <div className={wrap}>
         <h2 className="text-sm font-medium text-muted-foreground">
-          Rechnungsanalyse — {output.name}
+          Bill analysis — {output.name}
         </h2>
         <p className="mt-2 text-sm">
-          Nicht genug Monatsrechnungen für einen Vergleich.
+          Not enough monthly bills for a comparison.
         </p>
       </div>
     );
@@ -67,23 +67,23 @@ export default function ExplainBill() {
     <div className={wrap}>
       {/* Plain-language headline: the answer first. */}
       <h2 className="text-sm font-medium text-muted-foreground">
-        Warum war die Rechnung {higher ? "höher" : "niedriger"}? — {output.name}
+        Why was the bill {higher ? "higher" : "lower"}? — {output.name}
       </h2>
       <p className="mt-1 text-lg leading-snug font-medium">
         <span className="text-2xl font-semibold tabular-nums">
           {eur(output.totalEur)}
         </span>{" "}
-        im {output.monthLabel} —{" "}
+        in {output.monthLabel} —{" "}
         <span
           className={`font-semibold ${higher ? "text-red-500" : "text-green-600"}`}
         >
-          {eur(Math.abs(output.deltaEur))} {higher ? "teurer" : "günstiger"}
+          {eur(Math.abs(output.deltaEur))} {higher ? "more" : "less"}
         </span>{" "}
-        als im {output.compareLabel}.
+        than in {output.compareLabel}.
         {output.mainReason && (
           <>
             {" "}
-            Hauptgrund: <span className="font-semibold">{output.mainReason}</span>
+            Main reason: <span className="font-semibold">{output.mainReason}</span>
           </>
         )}
       </p>
@@ -92,7 +92,7 @@ export default function ExplainBill() {
         /* Stacked monthly consumption by area (kWh). */
         <div className="mt-3">
           <div className="mb-1 px-1 text-xs font-medium text-muted-foreground">
-            Verbrauch nach Bereich (kWh)
+            Consumption by area (kWh)
           </div>
           <div className="h-56 w-full">
             <ResponsiveContainer width="100%" height="100%">

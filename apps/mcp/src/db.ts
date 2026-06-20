@@ -1,3 +1,3 @@
 import "./env.js";
 
-export { prisma } from "@enpal/db";
+export { prisma, Prisma } from "@enpal/db";

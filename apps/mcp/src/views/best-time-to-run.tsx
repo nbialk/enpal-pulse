@@ -77,7 +77,7 @@ export default function BestTimeToRun() {
           </p>
         </div>
         <span className="rounded border border-border px-2 py-1 text-xs text-muted-foreground">
-          {output.tariffType === "fixed" ? "Fester Tarif" : "Dynamischer Tarif"}
+          {output.tariffType === "fixed" ? "Fixed tariff" : "Dynamic tariff"}
         </span>
       </div>
 
@@ -135,29 +135,35 @@ export default function BestTimeToRun() {
 
       <div className="mt-1 flex items-center gap-4 px-1 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
-          <span className="inline-block h-0.5 w-3" style={{ background: PRICE }} /> Preis (ct/kWh)
+          <span className="inline-block h-0.5 w-3" style={{ background: PRICE }} /> Price (ct/kWh)
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="inline-block h-2 w-3 rounded-sm" style={{ background: PV, opacity: 0.4 }} /> Solarüberschuss (kW)
+          <span className="inline-block h-2 w-3 rounded-sm" style={{ background: PV, opacity: 0.4 }} /> Solar surplus (kW)
         </span>
       </div>
 
-      <div className="mt-3 grid grid-cols-3 gap-2">
-        <Stat label="Geschätzte Kosten" value={`${output.effectiveCostEur!.toFixed(2)} €`} />
-        <Stat label="Ersparnis" value={`${output.savingsEur!.toFixed(2)} €`} />
-        <Stat label="PV-Anteil" value={`${output.pvSharePct} %`} />
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <Stat
+          label="Estimated cost"
+          value={`${output.effectiveCostEur!.toFixed(2)} €`}
+          sub={output.savingsEur! > 0 ? `−${output.savingsEur!.toFixed(2)} € saved` : undefined}
+        />
+        <Stat label="PV share" value={`${output.pvSharePct} %`} />
       </div>
-
-      <p className="mt-3 px-1 text-sm leading-snug text-muted-foreground">{output.reason}</p>
     </div>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="rounded-lg border border-border bg-card p-3">
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="mt-1 text-base font-semibold tabular-nums">{value}</div>
+      {sub && (
+        <div className="mt-0.5 text-xs font-medium tabular-nums" style={{ color: PV }}>
+          {sub}
+        </div>
+      )}
     </div>
   );
 }

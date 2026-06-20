@@ -325,7 +325,7 @@ export default function DailyEnergyFlow() {
                 fill={valueColor}
                 fontFamily="var(--font-mono)"
               >
-                {`${signed < -0.05 ? "−" : ""}${Math.abs(signed).toFixed(1)} kW`}
+                {`${key !== "battery" && signed < -0.05 ? "−" : ""}${Math.abs(signed).toFixed(1)} kW`}
               </text>
 
               <text

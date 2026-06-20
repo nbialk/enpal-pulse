@@ -1,6 +1,6 @@
 import { McpServer } from "skybridge/server";
 import { z } from "zod";
-import { prisma } from "./db.js";
+import { prisma, Prisma } from "./db.js";
 
 const readOnly = {
   readOnlyHint: true,
@@ -113,7 +113,7 @@ const server = new McpServer(
         householdId,
         name: household.name,
         date: day,
-        dateLabel: new Intl.DateTimeFormat("de-DE", {
+        dateLabel: new Intl.DateTimeFormat("en-GB", {
           timeZone: "UTC",
           day: "numeric",
           month: "long",
@@ -194,7 +194,7 @@ const server = new McpServer(
     const clock = `${String(Math.floor(totalMin / 60) % 24).padStart(2, "0")}:${String(totalMin % 60).padStart(2, "0")}`;
 
     // Human-readable German date, e.g. "20. Juni 2025".
-    const dateLabel = new Intl.DateTimeFormat("de-DE", {
+    const dateLabel = new Intl.DateTimeFormat("en-GB", {
       timeZone: "UTC",
       day: "numeric",
       month: "long",
@@ -249,7 +249,7 @@ const server = new McpServer(
   {
     name: "explain-bill",
     description:
-      "Explain a household's monthly bill: decomposes the euro difference between two months into drivers (energy cost, feed-in credit, base fee) and, when comparing several months, renders a stacked bar chart of consumption by area (house load, heat pump, EV) per month. Use for 'Why was my bill higher this month?' or 'Compare the last 3 months'.",
+      "Explain a household's monthly bill: decomposes the euro difference between two months into drivers (energy cost, feed-in credit, base fee) and renders a stacked bar chart of consumption by area (house load, heat pump, EV) per month. Use for 'Why was my bill higher this month?', 'Compare the last 3 months', or 'Compare January and June'. To compare two specific named months, set BOTH `month` and `compareMonth` to those months (resolve the year yourself); the chart then shows exactly those two months.",
     inputSchema: {
       household: z
         .enum(HOUSEHOLD_NAMES)
@@ -260,14 +260,14 @@ const server = new McpServer(
         .regex(/^\d{4}-\d{2}$/)
         .optional()
         .describe(
-          "Latest month to explain as YYYY-MM. Defaults to the most recent available month.",
+          "Target month to explain as YYYY-MM. For a two-month comparison, set this to one of the requested months (resolve the year yourself). Defaults to the most recent available month.",
         ),
       compareMonth: z
         .string()
         .regex(/^\d{4}-\d{2}$/)
         .optional()
         .describe(
-          "Reference month as YYYY-MM for the driver breakdown. Defaults to the previous month.",
+          "Reference month as YYYY-MM for the driver breakdown. For a two-month comparison, set this to the other requested month (resolve the year yourself); the chart then shows exactly `month` and `compareMonth`. Defaults to the previous month.",
         ),
       months: z
         .number()
@@ -294,13 +294,13 @@ const server = new McpServer(
     });
 
     const monthLabelDe = (ym: string) =>
-      new Intl.DateTimeFormat("de-DE", {
+      new Intl.DateTimeFormat("en-GB", {
         timeZone: "UTC",
         month: "long",
         year: "numeric",
       }).format(new Date(`${ym}-01T00:00:00Z`));
     const eur = (n: number) =>
-      new Intl.NumberFormat("de-DE", {
+      new Intl.NumberFormat("en-GB", {
         style: "currency",
         currency: "EUR",
         maximumFractionDigits: 0,
@@ -370,31 +370,31 @@ const server = new McpServer(
       direction: "increase" | "decrease";
       detail: string;
     };
-    // Keep the energy-cost change as one understandable driver ("Stromkosten")
+    // Keep the energy-cost change as one understandable driver ("Energy cost")
     // instead of splitting it into a grid-import part plus a confusing residual.
     // Surface the causal chain in the detail: consumption drives grid import.
     const raw: Driver[] = [
       {
         key: "energy_cost",
-        label: "Stromkosten",
+        label: "Energy cost",
         amountEur: energyDelta,
         direction: energyDelta >= 0 ? "increase" : "decrease",
-        detail: `Verbrauch ${kwh(consumptionDelta)} → Netzbezug ${kwh(importDelta)}`,
+        detail: `Consumption ${kwh(consumptionDelta)} → grid import ${kwh(importDelta)}`,
       },
       {
         key: "feed_in",
-        label: "Einspeise-Gutschrift",
+        label: "Feed-in credit",
         amountEur: feedInDelta,
         direction: feedInDelta >= 0 ? "increase" : "decrease",
-        detail: `PV ${kwh(pvDelta)} → ${eur(Math.abs(feedInDelta))} ${feedInDelta >= 0 ? "weniger" : "mehr"} Gutschrift`,
+        detail: `PV ${kwh(pvDelta)} → ${eur(Math.abs(feedInDelta))} ${feedInDelta >= 0 ? "less" : "more"} credit`,
       },
       {
         key: "base_fee",
-        label: "Grundgebühr",
+        label: "Base fee",
         amountEur: baseFeeDelta,
         direction: baseFeeDelta >= 0 ? "increase" : "decrease",
         detail:
-          baseFeeDelta === 0 ? "unverändert" : `${eur(baseFeeDelta)} Differenz`,
+          baseFeeDelta === 0 ? "unchanged" : `${eur(baseFeeDelta)} difference`,
       },
     ];
     // Drop negligible drivers, sort by impact magnitude.
@@ -432,22 +432,27 @@ const server = new McpServer(
         : 0;
     const mainReason =
       Math.abs(consumptionDelta) >= 10
-        ? `${Math.abs(round(consumptionDelta))} kWh ${consumptionDelta < 0 ? "weniger" : "mehr"} Verbrauch (${round(consumptionPct)}%) — ${lower ? "weniger Strom aus dem Netz" : "mehr Strom aus dem Netz"}.`
+        ? `${Math.abs(round(consumptionDelta))} kWh ${consumptionDelta < 0 ? "less" : "more"} consumption (${round(consumptionPct)}%) — ${lower ? "less power drawn from the grid" : "more power drawn from the grid"}.`
         : drivers[0]
-          ? `${drivers[0].label}: ${eur(Math.abs(drivers[0].amountEur))} ${drivers[0].amountEur < 0 ? "gespart" : "mehr"}.`
-          : "Keine wesentliche Veränderung.";
+          ? `${drivers[0].label}: ${eur(Math.abs(drivers[0].amountEur))} ${drivers[0].amountEur < 0 ? "saved" : "more"}.`
+          : "No significant change.";
 
-    // Stacked monthly consumption by area for the last `months` months ending at
-    // the target month. Aggregated in the DB (kW * 0.25 -> kWh per 15-min step).
-    const targetIdx = bills.findIndex((b) => b.month === target.month);
-    const windowBills = bills.slice(
-      Math.max(0, targetIdx - months + 1),
-      targetIdx + 1,
+    // Stacked monthly consumption by area. When the user asks to compare two
+    // specific months (both `month` and `compareMonth` given), chart exactly
+    // those two months. Otherwise chart the last `months` months ending at the
+    // target month. Aggregated in the DB (kW * 0.25 -> kWh per 15-min step).
+    const explicitPair = Boolean(
+      month && compareMonth && byMonth.has(month) && byMonth.has(compareMonth),
     );
-    const rangeStart = new Date(`${windowBills[0].month}-01T00:00:00Z`);
-    const lastMonth = windowBills[windowBills.length - 1].month;
-    const rangeEnd = new Date(`${lastMonth}-01T00:00:00Z`);
-    rangeEnd.setUTCMonth(rangeEnd.getUTCMonth() + 1);
+    const targetIdx = bills.findIndex((b) => b.month === target.month);
+    const chartMonths = explicitPair
+      ? [reference.month, target.month].sort()
+      : bills
+          .slice(Math.max(0, targetIdx - months + 1), targetIdx + 1)
+          .map((b) => b.month);
+    const monthStarts = chartMonths.map(
+      (m) => new Date(`${m}-01T00:00:00Z`),
+    );
 
     type AreaRow = {
       month: Date;
@@ -463,8 +468,7 @@ const server = new McpServer(
         SUM(ev_charging_kw) * 0.25 AS ev_kwh
       FROM energy_records
       WHERE household_id = ${householdId}
-        AND timestamp >= ${rangeStart}
-        AND timestamp < ${rangeEnd}
+        AND date_trunc('month', timestamp) IN (${Prisma.join(monthStarts)})
       GROUP BY month
       ORDER BY month ASC
     `;
@@ -475,7 +479,7 @@ const server = new McpServer(
       const evKwh = round(Number(r.ev_kwh));
       return {
         month: ym,
-        monthLabel: new Intl.DateTimeFormat("de-DE", {
+        monthLabel: new Intl.DateTimeFormat("en-GB", {
           timeZone: "UTC",
           month: "short",
           year: "2-digit",
@@ -625,7 +629,7 @@ const server = new McpServer(
       orderBy: { timestamp: "asc" },
     });
 
-    const dateLabel = new Intl.DateTimeFormat("de-DE", {
+    const dateLabel = new Intl.DateTimeFormat("en-GB", {
       timeZone: "UTC",
       weekday: "long",
       day: "numeric",
@@ -647,7 +651,7 @@ const server = new McpServer(
         effectiveCostEur: null,
         savingsEur: null,
         pvSharePct: null,
-        reason: "Für diesen Tag liegen keine Energiedaten vor.",
+        reason: "No energy data available for this day.",
         slots: [] as { clock: string; price: number; pvSurplus: number; inWindow: boolean }[],
       };
       return {
@@ -710,8 +714,8 @@ const server = new McpServer(
 
     const reason =
       tariffType === "fixed"
-        ? `Fester Tarif: In diesem Fenster ist der Solarüberschuss am höchsten (${Math.round(pvSharePct)}% des Bedarfs aus eigener PV). So nutzt du am meisten Eigenstrom.`
-        : `Dynamischer Tarif: günstigstes ${duration}-Stunden-Fenster${pvSharePct > 5 ? ` mit zusätzlich ${Math.round(pvSharePct)}% PV-Eigenstrom` : ""}. Ersparnis ggü. dem teuersten Fenster: ca. ${savingsEur.toFixed(2)} €.`;
+        ? `Fixed tariff: solar surplus peaks in this window (${Math.round(pvSharePct)}% of the demand covered by your own PV), so you use the most self-generated power.`
+        : `Dynamic tariff: cheapest ${duration}-hour window${pvSharePct > 5 ? ` with an additional ${Math.round(pvSharePct)}% PV self-supply` : ""}. Savings vs. the most expensive window: approx. ${savingsEur.toFixed(2)} €.`;
 
     const round1 = (n: number) => Number(n.toFixed(1));
     const structuredContent = {
