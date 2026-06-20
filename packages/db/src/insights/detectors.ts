@@ -5,6 +5,16 @@ const eur = (n: number) =>
 const price = (n: number) =>
   n.toLocaleString("de-DE", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 const hour = (h: number) => `${String(h).padStart(2, "0")}:00`;
+const MONTH_NAMES = [
+  "Januar", "Februar", "März", "April", "Mai", "Juni",
+  "Juli", "August", "September", "Oktober", "November", "Dezember",
+];
+/** "2025-08" → "August 2025" */
+const monthLabel = (ym: string) => {
+  const [year, month] = ym.split("-");
+  const name = MONTH_NAMES[Number(month) - 1];
+  return name ? `${name} ${year}` : ym;
+};
 
 /** A detector returns an insight when its rule fires, otherwise null. */
 type Detector = (f: HouseholdFacts) => GeneratedInsight | null;
@@ -116,8 +126,8 @@ const billSpike: Detector = (f) => {
     type: "bill_spike",
     severity: "info",
     period: peak.month,
-    title: `Höchste Rechnung im Monat ${peak.month}`,
-    detail: `${peak.month} kostete ${eur(peak.totalBillEur)} € gegenüber deinem Tief von ${eur(low.totalBillEur)} € im Monat ${low.month} — meist getrieben durch Heizbedarf und weniger Solar.`,
+    title: `Höchste Rechnung im ${monthLabel(peak.month)}`,
+    detail: `${monthLabel(peak.month)} kostete ${eur(peak.totalBillEur)} € gegenüber deinem Tief von ${eur(low.totalBillEur)} € im ${monthLabel(low.month)} — meist getrieben durch Heizbedarf und weniger Solar.`,
     suggestedAction: "In sonnigen/günstigen Stunden vorheizen; Heizplan im Winter prüfen.",
     impactEur: peak.totalBillEur - median,
   };
