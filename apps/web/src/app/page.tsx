@@ -9,9 +9,9 @@ import { ThemeToggle } from "@/components/theme-toggle";
 const MCP_URL = "https://mcp.enpal.niklas.sh/mcp";
 
 const prompts = [
-  "Why was my bill higher in January?",
-  "When is the cheapest time to charge the car?",
-  "Explain my contract terms to me.",
+  "Why was my bill higher this month?",
+  "When should I charge my car?",
+  "What was my energy usage today?",
 ];
 
 export default function Home() {
