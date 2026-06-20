@@ -19,3 +19,4 @@ dist/
 .skybridge/
 .playwright-mcp/
 *.tsbuildinfo
+.vercel
