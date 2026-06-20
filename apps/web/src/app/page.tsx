@@ -9,9 +9,9 @@ import { ThemeToggle } from "@/components/theme-toggle";
 const MCP_URL = "https://mcp.enpal.niklas.sh/mcp";
 
 const prompts = [
-  "Warum war meine Rechnung im Januar höher?",
-  "Wann ist der günstigste Zeitpunkt, das Auto zu laden?",
-  "Erkläre mir meine Vertragsbedingungen.",
+  "Why was my bill higher in January?",
+  "When is the cheapest time to charge the car?",
+  "Explain my contract terms to me.",
 ];
 
 export default function Home() {
@@ -57,12 +57,12 @@ export default function Home() {
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Button asChild size="lg">
               <Link href="/dashboard">
-                Dashboard öffnen
+                Open dashboard
                 <ArrowRight />
               </Link>
             </Button>
             <Button asChild size="lg" variant="outline">
-              <a href="#connect">MCP verbinden</a>
+              <a href="#connect">Connect MCP</a>
             </Button>
           </div>
         </section>
@@ -87,10 +87,10 @@ export default function Home() {
               />
             </div>
             <h2 className="mt-4 text-center text-xl font-semibold tracking-tight">
-              In ChatGPT oder Claude verbinden
+              Connect in ChatGPT or Claude
             </h2>
             <p className="mx-auto mt-1.5 max-w-md text-center text-sm text-muted-foreground">
-              Füge die URL als Custom Connector hinzu.
+              Add the URL as a custom connector.
             </p>
 
             <div className="mt-5 flex items-center gap-2">
@@ -102,7 +102,7 @@ export default function Home() {
 
             <div className="mt-6">
               <p className="text-center text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Beispiel-Prompts
+                Example prompts
               </p>
               <ul className="mt-3 space-y-2">
                 {prompts.map((p) => (

@@ -13,15 +13,15 @@ import {
 import type { LiveSnapshot } from "@/components/charts/energy-flow";
 
 const num = (n: number, digits = 0) =>
-  n.toLocaleString("de-DE", {
+  n.toLocaleString("en-US", {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
   });
 
 const PRICE_CONTEXT: Record<string, { label: string; className: string }> = {
-  cheap: { label: "günstig", className: "bg-brand/10 text-brand" },
-  typical: { label: "typisch", className: "bg-muted text-muted-foreground" },
-  pricey: { label: "teuer", className: "bg-destructive/10 text-destructive" },
+  cheap: { label: "cheap", className: "bg-brand/10 text-brand" },
+  typical: { label: "typical", className: "bg-muted text-muted-foreground" },
+  pricey: { label: "pricey", className: "bg-destructive/10 text-destructive" },
 };
 
 function socColor(pct: number) {
@@ -109,7 +109,7 @@ export function HouseholdInsights({ live }: { live: LiveSnapshot | null }) {
           ) : (
             <Zap className="size-3.5" />
           )}
-          Jetzt gerade
+          Right now
         </div>
 
         {live ? (
@@ -133,7 +133,7 @@ export function HouseholdInsights({ live }: { live: LiveSnapshot | null }) {
           </div>
         ) : (
           <p className="mt-3 text-sm text-muted-foreground">
-            Live-Daten werden geladen.
+            Loading live data.
           </p>
         )}
       </div>
@@ -141,7 +141,7 @@ export function HouseholdInsights({ live }: { live: LiveSnapshot | null }) {
       {/* Daily balance */}
       <div className="flex flex-1 flex-col bg-card p-5">
         <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Tagesbilanz{live ? ` · bis ${live.clock}` : ""}
+          Daily balance{live ? ` · until ${live.clock}` : ""}
         </div>
 
         {balance ? (
@@ -151,26 +151,26 @@ export function HouseholdInsights({ live }: { live: LiveSnapshot | null }) {
                 icon={Sun}
                 value={num(balance.pv, 1)}
                 unit="kWh"
-                label="Solarertrag"
+                label="Solar yield"
                 accent
               />
               <MetricTile
                 icon={Home}
                 value={num(balance.consumption, 1)}
                 unit="kWh"
-                label="Verbrauch"
+                label="Consumption"
               />
               <MetricTile
                 icon={Zap}
                 value={num(balance.gridImport, 1)}
                 unit="kWh"
-                label="Netzbezug"
+                label="Grid import"
               />
               <MetricTile
                 icon={ArrowUpFromLine}
                 value={num(balance.gridExport, 1)}
                 unit="kWh"
-                label="Einspeisung"
+                label="Grid export"
                 accent
               />
             </div>
@@ -180,7 +180,7 @@ export function HouseholdInsights({ live }: { live: LiveSnapshot | null }) {
               <div className="flex items-center justify-between gap-2">
                 <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <Gauge className="size-3.5" />
-                  Eigenverbrauch
+                  Self-consumption
                 </span>
                 <span className="text-sm font-semibold tabular-nums">
                   {num(balance.selfConsumption)}
@@ -201,7 +201,7 @@ export function HouseholdInsights({ live }: { live: LiveSnapshot | null }) {
           </div>
         ) : (
           <p className="mt-3 text-sm text-muted-foreground">
-            Daten werden geladen.
+            Loading data.
           </p>
         )}
       </div>

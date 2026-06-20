@@ -48,18 +48,18 @@ export function TopNav({
                 : "text-muted-foreground",
             )}
           >
-            Übersicht
+            Overview
           </Link>
           <Link
-            href={`/dashboard/jahr${query}`}
+            href={`/dashboard/year${query}`}
             className={cn(
               "rounded-md px-2.5 py-1.5 font-medium transition-colors hover:bg-muted",
-              pathname === "/dashboard/jahr"
+              pathname === "/dashboard/year"
                 ? "text-foreground"
                 : "text-muted-foreground",
             )}
           >
-            Jahr
+            Year
           </Link>
         </nav>
         <div className="flex items-center gap-1.5">

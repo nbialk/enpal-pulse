@@ -1,13 +1,13 @@
 import type { GeneratedInsight, HouseholdFacts } from "./types.js";
 
 const eur = (n: number) =>
-  n.toLocaleString("de-DE", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 const price = (n: number) =>
-  n.toLocaleString("de-DE", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+  n.toLocaleString("en-US", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 const hour = (h: number) => `${String(h).padStart(2, "0")}:00`;
 const MONTH_NAMES = [
-  "Januar", "Februar", "März", "April", "Mai", "Juni",
-  "Juli", "August", "September", "Oktober", "November", "Dezember",
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
 ];
 /** "2025-08" → "August 2025" */
 const monthLabel = (ym: string) => {
@@ -34,14 +34,14 @@ const tariffMismatch: Detector = (f) => {
   const delta = f.actualEnergyEur - Math.min(f.dynamicEnergyEur, f.fixedEnergyEur);
   if (delta <= TARIFF_DELTA_THRESHOLD) return null;
   const better = f.tariffType === "dynamic" ? "fixed" : "dynamic";
-  const betterLabel = better === "fixed" ? "Festtarif" : "dynamischen Tarif";
+  const betterLabel = better === "fixed" ? "fixed tariff" : "dynamic tariff";
   return {
     type: "tariff_mismatch",
     severity: "high",
     period: "2025",
-    title: `Tarif: rund ${eur(delta)} € pro Jahr zu viel`,
-    detail: `Auf deinem aktuellen ${f.tariffType === "dynamic" ? "dynamischen Tarif" : "Festtarif"} zahlst du übers Jahr etwa ${eur(delta)} € mehr als auf einem ${betterLabel} bei gleichem Verbrauch.`,
-    suggestedAction: `Wechsel auf einen ${betterLabel} prüfen.`,
+    title: `Tariff: about €${eur(delta)} too much per year`,
+    detail: `On your current ${f.tariffType === "dynamic" ? "dynamic tariff" : "fixed tariff"} you pay roughly €${eur(delta)} more over the year than you would on a ${betterLabel} for the same consumption.`,
+    suggestedAction: `Consider switching to a ${betterLabel}.`,
     impactEur: delta,
   };
 };
@@ -50,14 +50,14 @@ const tariffMismatch: Detector = (f) => {
 const tariffOptimal: Detector = (f) => {
   const delta = f.actualEnergyEur - Math.min(f.dynamicEnergyEur, f.fixedEnergyEur);
   if (delta > TARIFF_DELTA_THRESHOLD) return null;
-  const otherLabel = f.tariffType === "dynamic" ? "Festtarif" : "dynamischen Tarif";
+  const otherLabel = f.tariffType === "dynamic" ? "fixed tariff" : "dynamic tariff";
   return {
     type: "tariff_optimal",
     severity: "info",
     period: "2025",
-    title: "Dein Tarif passt",
-    detail: `Dein ${f.tariffType === "dynamic" ? "dynamischer Tarif" : "Festtarif"} ist für dein Verbrauchsprofil die günstigere Wahl — ein Wechsel auf einen ${otherLabel} würde dich nicht entlasten.`,
-    suggestedAction: "Keine Aktion nötig.",
+    title: "Your tariff fits",
+    detail: `Your ${f.tariffType === "dynamic" ? "dynamic tariff" : "fixed tariff"} is the cheaper choice for your consumption profile — switching to a ${otherLabel} would not save you anything.`,
+    suggestedAction: "No action needed.",
     impactEur: 0,
   };
 };
@@ -77,9 +77,9 @@ const loadShift: Detector = (f) => {
         type: "load_shift",
         severity: "high",
         period: "recurring",
-        title: `E-Auto clever laden spart rund ${eur(saving)} € pro Jahr`,
-        detail: `Du lädst dein E-Auto im Schnitt für ${price(f.evAvgPrice)} €/kWh. Am günstigsten ist Strom um ${hour(f.cheapestHour)} (${price(f.cheapestHourPrice)} €/kWh) — am teuersten um ${hour(f.priciestHour)} (${price(f.priciestHourPrice)} €/kWh).`,
-        suggestedAction: `Ladezeit auf das günstige Fenster um ${hour(f.cheapestHour)} legen.`,
+        title: `Smart EV charging saves about €${eur(saving)} per year`,
+        detail: `You charge your EV at an average of €${price(f.evAvgPrice)}/kWh. Electricity is cheapest at ${hour(f.cheapestHour)} (€${price(f.cheapestHourPrice)}/kWh) — and most expensive at ${hour(f.priciestHour)} (€${price(f.priciestHourPrice)}/kWh).`,
+        suggestedAction: `Move charging to the cheap window around ${hour(f.cheapestHour)}.`,
         impactEur: saving,
       };
     }
@@ -88,10 +88,10 @@ const loadShift: Detector = (f) => {
       type: "load_shift",
       severity: "info",
       period: "recurring",
-      title: "E-Auto mit eigenem Solarstrom laden",
+      title: "Charge your EV with your own solar power",
       detail:
-        "In deinem Festtarif ändert die Uhrzeit den Preis nicht — aber mittags lädst du mit eigenem Solarstrom statt teurem Netzbezug.",
-      suggestedAction: "E-Auto bevorzugt mittags bei Solarüberschuss laden.",
+        "On your fixed tariff the time of day does not change the price — but at midday you charge with your own solar power instead of expensive grid electricity.",
+      suggestedAction: "Charge the EV preferably at midday during solar surplus.",
       impactEur: 0,
     };
   }
@@ -104,9 +104,9 @@ const loadShift: Detector = (f) => {
       type: "load_shift",
       severity: "info",
       period: "recurring",
-      title: "Flexible Verbraucher in günstige Stunden verschieben",
-      detail: `Strom ist um ${hour(f.cheapestHour)} am günstigsten (${price(f.cheapestHourPrice)} €/kWh) und um ${hour(f.priciestHour)} am teuersten (${price(f.priciestHourPrice)} €/kWh).`,
-      suggestedAction: `Spül-/Waschmaschine${f.hasHeatPump ? " und Wärmepumpen-Heizzeiten" : ""} in das günstige Fenster legen.`,
+      title: "Shift flexible loads into cheap hours",
+      detail: `Electricity is cheapest at ${hour(f.cheapestHour)} (€${price(f.cheapestHourPrice)}/kWh) and most expensive at ${hour(f.priciestHour)} (€${price(f.priciestHourPrice)}/kWh).`,
+      suggestedAction: `Run the dishwasher/washing machine${f.hasHeatPump ? " and heat-pump heating times" : ""} during the cheap window.`,
       impactEur: 0,
     };
   }
@@ -126,9 +126,9 @@ const billSpike: Detector = (f) => {
     type: "bill_spike",
     severity: "info",
     period: peak.month,
-    title: `Höchste Rechnung im ${monthLabel(peak.month)}`,
-    detail: `${monthLabel(peak.month)} kostete ${eur(peak.totalBillEur)} € gegenüber deinem Tief von ${eur(low.totalBillEur)} € im ${monthLabel(low.month)} — meist getrieben durch Heizbedarf und weniger Solar.`,
-    suggestedAction: "In sonnigen/günstigen Stunden vorheizen; Heizplan im Winter prüfen.",
+    title: `Highest bill in ${monthLabel(peak.month)}`,
+    detail: `${monthLabel(peak.month)} cost €${eur(peak.totalBillEur)} compared with your low of €${eur(low.totalBillEur)} in ${monthLabel(low.month)} — usually driven by heating demand and less solar.`,
+    suggestedAction: "Pre-heat during sunny/cheap hours; review your heating schedule in winter.",
     impactEur: peak.totalBillEur - median,
   };
 };
@@ -147,9 +147,9 @@ const standbyLoad: Detector = (f) => {
     type: "standby_load",
     severity: "info",
     period: "recurring",
-    title: `Hohe Grundlast: rund ${eur(cost)} € pro Jahr`,
-    detail: `Nachts ziehst du durchgehend etwa ${f.nightlyBaseloadKw.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kW — das summiert sich über das Jahr.`,
-    suggestedAction: "Dauerverbraucher im Standby identifizieren und abschalten.",
+    title: `High baseload: about €${eur(cost)} per year`,
+    detail: `At night you continuously draw about ${f.nightlyBaseloadKw.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kW — this adds up over the year.`,
+    suggestedAction: "Identify and switch off constant standby consumers.",
     impactEur: cost,
   };
 };

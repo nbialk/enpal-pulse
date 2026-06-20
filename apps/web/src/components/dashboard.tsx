@@ -18,7 +18,7 @@ function LiveSection({ householdId }: { householdId: string }) {
   const timeline = useEnergyTimeline(householdId, setLive);
   return (
     <Section
-      question="Was passiert gerade in meinem Zuhause?"
+      question="What is happening in my home right now?"
       action={<EnergyDayPicker timeline={timeline} />}
       className="p-0"
     >

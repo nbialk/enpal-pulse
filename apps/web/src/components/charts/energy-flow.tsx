@@ -43,7 +43,7 @@ type Step = {
 };
 
 // Live state at the timeline cursor, surfaced for the side panel so its
-// "Jetzt gerade" values stay in sync with the diagram.
+// "Right now" values stay in sync with the diagram.
 export type LiveSnapshot = {
   clock: string;
   price: number;

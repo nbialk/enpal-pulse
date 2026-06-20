@@ -6,7 +6,7 @@ const fmtDate = (iso: string) => {
   const d = new Date(iso);
   return Number.isNaN(d.getTime())
     ? iso
-    : d.toLocaleDateString("de-DE", {
+    : d.toLocaleDateString("en-US", {
         day: "2-digit",
         month: "short",
         year: "numeric",
@@ -33,7 +33,7 @@ export function ContractCard({ householdId }: { householdId: string }) {
   if (!contract) {
     return (
       <p className="text-sm text-muted-foreground">
-        Kein Vertrag hinterlegt.
+        No contract on file.
       </p>
     );
   }
@@ -42,15 +42,15 @@ export function ContractCard({ householdId }: { householdId: string }) {
 
   return (
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-      <Field label="Anbieter" value={contract.provider} />
+      <Field label="Provider" value={contract.provider} />
       <Field
-        label="Tarifmodell"
-        value={isDynamic ? "Dynamisch (Börsenpreis)" : "Festpreis"}
+        label="Tariff model"
+        value={isDynamic ? "Dynamic (spot price)" : "Fixed price"}
       />
-      <Field label="Läuft bis" value={fmtDate(contract.contractEnd)} />
+      <Field label="Runs until" value={fmtDate(contract.contractEnd)} />
       <Field
-        label="Kündigungsfrist"
-        value={`${contract.noticePeriodWeeks} Wochen`}
+        label="Notice period"
+        value={`${contract.noticePeriodWeeks} weeks`}
       />
     </div>
   );

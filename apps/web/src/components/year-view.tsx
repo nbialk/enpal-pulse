@@ -29,29 +29,29 @@ export function YearView({ householdId }: { householdId: string }) {
       {/* Supporting context at a glance */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat
-          label="Eigenversorgung"
+          label="Self-sufficiency"
           value={avgSelfSufficiency.toFixed(0)}
           unit="%"
-          hint="Anteil Eigenstrom"
+          hint="Share of own power"
         />
         <Stat
-          label="Solarproduktion"
+          label="Solar production"
           value={yearPv.toFixed(0)}
           unit="kWh"
           hint="2025"
         />
         <Stat
-          label="Verbrauch"
+          label="Consumption"
           value={yearConsumption.toFixed(0)}
           unit="kWh"
           hint="2025"
         />
         <Stat
-          label="Batterie"
+          label="Battery"
           value={
             household.data?.batteryKwh
               ? `${household.data.batteryKwh}`
-              : "keine"
+              : "none"
           }
           unit={household.data?.batteryKwh ? "kWh" : undefined}
         />
@@ -59,16 +59,16 @@ export function YearView({ householdId }: { householdId: string }) {
 
       {/* Question 3 — why was my bill what it was? */}
       <Section
-        question="Warum war meine Rechnung so?"
-        answer="Monatliche Kosten und wie viel Strom du selbst gedeckt hast."
+        question="Why was my bill what it was?"
+        answer="Monthly costs and how much power you covered yourself."
       >
         <BillsChart householdId={householdId} />
       </Section>
 
       {/* Question 4 — when should I use energy? */}
       <Section
-        question="Wann sollte ich Energie nutzen?"
-        answer="Tagesverlauf von Solarproduktion, Verbrauch und Netzbezug."
+        question="When should I use energy?"
+        answer="Daily curve of solar production, consumption and grid import."
         action={
           <EnergyMonthSelect month={energyMonth} onMonthChange={setEnergyMonth} />
         }
@@ -78,8 +78,8 @@ export function YearView({ householdId }: { householdId: string }) {
 
       {/* Question 5 — is my contract still a good deal? */}
       <Section
-        question="Ist mein Vertrag noch gut?"
-        answer="Die Eckdaten deines Tarifs auf einen Blick."
+        question="Is my contract still a good deal?"
+        answer="The key facts of your tariff at a glance."
       >
         <ContractCard householdId={householdId} />
       </Section>

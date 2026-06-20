@@ -25,7 +25,7 @@ const TYPE_ICON: Record<string, LucideIcon> = {
 };
 
 const eur = (n: number) =>
-  n.toLocaleString("de-DE", { maximumFractionDigits: 0 });
+  n.toLocaleString("en-US", { maximumFractionDigits: 0 });
 
 export function InsightCard({ householdId }: { householdId: string }) {
   const feed = trpc.insights.feed.useQuery({ householdId });
@@ -55,7 +55,7 @@ export function InsightCard({ householdId }: { householdId: string }) {
       <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
         <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
           <Lightbulb className="size-3.5 text-brand" />
-          Hinweise für dich
+          Insights for you
         </div>
         {hasMany && (
           <div className="flex items-center gap-2">
@@ -68,14 +68,14 @@ export function InsightCard({ householdId }: { householdId: string }) {
                   setIndex((i) => (i - 1 + items.length) % items.length)
                 }
                 className="grid size-6 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                aria-label="Vorheriger Hinweis"
+                aria-label="Previous insight"
               >
                 <ChevronLeft className="size-4" />
               </button>
               <button
                 onClick={() => setIndex((i) => (i + 1) % items.length)}
                 className="grid size-6 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                aria-label="Nächster Hinweis"
+                aria-label="Next insight"
               >
                 <ChevronRight className="size-4" />
               </button>
@@ -101,7 +101,7 @@ export function InsightCard({ householdId }: { householdId: string }) {
             </h3>
             {current.impactEur != null && current.impactEur > 0 && (
               <span className="shrink-0 text-sm font-semibold tabular-nums text-brand">
-                {eur(current.impactEur)} €/Jahr
+                €{eur(current.impactEur)}/year
               </span>
             )}
           </div>
@@ -109,7 +109,7 @@ export function InsightCard({ householdId }: { householdId: string }) {
             {current.detail}
           </p>
           {current.suggestedAction &&
-            current.suggestedAction !== "Keine Aktion nötig." && (
+            current.suggestedAction !== "No action needed." && (
               <p className="mt-2 text-sm font-medium">
                 → {current.suggestedAction}
               </p>
@@ -123,7 +123,7 @@ export function InsightCard({ householdId }: { householdId: string }) {
             <button
               key={it.id}
               onClick={() => setIndex(i)}
-              aria-label={`Hinweis ${i + 1}`}
+              aria-label={`Insight ${i + 1}`}
               className={`h-1.5 rounded-full transition-all ${
                 i === safeIndex
                   ? "w-5 bg-brand"

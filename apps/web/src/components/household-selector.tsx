@@ -25,7 +25,7 @@ const TARIFF_LABEL: Record<string, string> = {
 };
 
 function tariffLabel(type: string) {
-  return TARIFF_LABEL[type] ?? "Tarif";
+  return TARIFF_LABEL[type] ?? "Tariff";
 }
 
 function tariffBadgeClass(type: string) {
