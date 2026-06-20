@@ -25,19 +25,30 @@ dynamic spot prices, and pre-detected insight events.
 | `list-households` | view | Pick a household; shows assets + tariff. |
 | `household-overview` | view | Annual summary: bill, self-sufficiency, PV, assets. |
 | `monthly-bills` | view | Monthly bill + self-sufficiency trend. |
+| `bill-breakdown` | tool | Why the bill changed vs prev month: volume vs price effect, per consumer. |
 | `energy-balance` | view | Daily PV vs consumption vs grid for a month. |
 | `insights` | view | Anomalies & nudges feed. |
 | `explain-contract` | tool | Returns contract terms text (NLP/grounding). |
-| `cheapest-window` | tool | Cheapest dynamic-price hours in a date range. |
+| `charge-advisor` | tool | When to charge the EV (PV-first). `now` = charge now? `plan` = best windows for a day. |
 
 All tools are `readOnlyHint: true`, `openWorldHint: false`,
 `destructiveHint: false`.
+
+## Simulated "now"
+
+`getNow()` (`src/now.ts`) anchors a simulated present inside the historical
+2025 dataset. Default = the last data point; override via `DEMO_NOW` env.
+Hard rule: no tool reads a row with `timestamp > NOW`. Forecasts are
+*estimated* from history (`forecastSource: "estimated"`), never peeked from
+future actuals.
 
 ## Scope-area mapping
 
 - Unified energy view → `household-overview`, `energy-balance`.
 - Conversational grounding → all views' `structuredContent` + `explain-contract`.
-- Contract & tariff intelligence → `explain-contract`, `cheapest-window`.
+- Why is my bill higher? → `bill-breakdown`.
+- Contract & tariff intelligence → `explain-contract`.
+- Charging timing (now / today / tomorrow) → `charge-advisor`.
 - Proactive insights & nudges → `insights`.
 
 ## Out of scope
