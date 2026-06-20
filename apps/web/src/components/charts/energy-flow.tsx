@@ -42,6 +42,24 @@ type Step = {
   price: number;
 };
 
+// Live state at the timeline cursor, surfaced for the side panel so its
+// "Jetzt gerade" values stay in sync with the diagram.
+export type LiveSnapshot = {
+  clock: string;
+  price: number;
+  priceContext: "cheap" | "typical" | "pricey" | null;
+  pvSurplus: boolean;
+  batterySocPct: number;
+  // Energy totals accumulated from midnight up to the cursor position.
+  balance: {
+    pv: number;
+    consumption: number;
+    gridImport: number;
+    gridExport: number;
+    selfConsumption: number;
+  };
+};
+
 // SVG canvas. Compact, balanced radial composition around the house.
 const W = 560;
 const H = 300;
@@ -52,6 +70,7 @@ type NodeDef = {
   label: string;
   icon: LucideIcon;
   color: string;
+  r?: number; // override radius (defaults to NODE_R)
 };
 
 const NODES: Record<string, NodeDef> = {
@@ -59,8 +78,9 @@ const NODES: Record<string, NodeDef> = {
   grid: { x: 80, y: 168, label: "Grid", icon: Zap, color: "var(--destructive)" },
   battery: { x: 480, y: 168, label: "Battery", icon: Battery, color: "var(--primary)" },
   house: { x: 280, y: 168, label: "House", icon: Home, color: "var(--foreground)" },
-  heatpump: { x: 188, y: 268, label: "Heat pump", icon: Thermometer, color: "var(--chart-2)" },
-  ev: { x: 372, y: 268, label: "EV", icon: Car, color: "var(--chart-2)" },
+  // Sub-consumers of the house: smaller and clustered close beneath it.
+  heatpump: { x: 214, y: 244, label: "Heat pump", icon: Thermometer, color: "var(--chart-2)", r: 22 },
+  ev: { x: 346, y: 244, label: "EV", icon: Car, color: "var(--chart-2)", r: 22 },
 };
 
 type NodeKey = keyof typeof NODES;
@@ -133,6 +153,8 @@ function formatMinutes(progress: number) {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
+const nodeR = (key: NodeKey) => NODES[key].r ?? NODE_R;
+
 function nodePath(from: NodeKey, to: NodeKey) {
   const a = NODES[from];
   const b = NODES[to];
@@ -142,10 +164,10 @@ function nodePath(from: NodeKey, to: NodeKey) {
   const len = Math.hypot(dx, dy) || 1;
   const ux = dx / len;
   const uy = dy / len;
-  const ax = a.x + ux * NODE_R;
-  const ay = a.y + uy * NODE_R;
-  const bx = b.x - ux * NODE_R;
-  const by = b.y - uy * NODE_R;
+  const ax = a.x + ux * nodeR(from);
+  const ay = a.y + uy * nodeR(from);
+  const bx = b.x - ux * nodeR(to);
+  const by = b.y - uy * nodeR(to);
   // Gentle perpendicular bow for visual separation of parallel edges.
   const mx = (ax + bx) / 2;
   const my = (ay + by) / 2;
@@ -213,7 +235,13 @@ function dayPhase(progress: number, riseIdx: number, setIdx: number) {
   return Math.sin(t * Math.PI); // peaks at midday
 }
 
-export function EnergyFlow({ householdId }: { householdId: string }) {
+export function EnergyFlow({
+  householdId,
+  onLiveChange,
+}: {
+  householdId: string;
+  onLiveChange?: (live: LiveSnapshot | null) => void;
+}) {
   const household = trpc.households.byId.useQuery(householdId);
   const days = trpc.energy.availableDays.useQuery({ householdId });
 
@@ -277,6 +305,67 @@ export function EnergyFlow({ householdId }: { householdId: string }) {
     const frac = progress - Math.floor(progress);
     return lerpStep(steps[i0], steps[i1], frac);
   }, [steps, progress]);
+
+  // Price percentiles across the day -> classify the cursor's price.
+  const priceBands = useMemo(() => {
+    if (steps.length === 0) return null;
+    const sorted = steps.map((s) => s.price).sort((a, b) => a - b);
+    return {
+      p33: sorted[Math.floor(sorted.length * 0.33)],
+      p66: sorted[Math.floor(sorted.length * 0.66)],
+    };
+  }, [steps]);
+
+  // Energy totals from midnight up to the cursor (full steps + fractional tail).
+  // kWh = sum(kW) * 0.25 (15-min samples).
+  const balance = useMemo(() => {
+    if (steps.length === 0) return null;
+    const full = Math.floor(progress);
+    const frac = progress - full;
+    const acc = { pv: 0, consumption: 0, gridImport: 0, gridExport: 0 };
+    for (let i = 0; i < steps.length; i++) {
+      const weight = i < full ? 1 : i === full ? frac : 0;
+      if (weight === 0) break;
+      const s = steps[i];
+      acc.pv += s.pv * weight;
+      acc.consumption += s.consumption * weight;
+      acc.gridImport += s.gridImport * weight;
+      acc.gridExport += s.gridExport * weight;
+    }
+    const pv = acc.pv * 0.25;
+    const gridExport = acc.gridExport * 0.25;
+    return {
+      pv,
+      consumption: acc.consumption * 0.25,
+      gridImport: acc.gridImport * 0.25,
+      gridExport,
+      selfConsumption: pv > 0 ? ((pv - gridExport) / pv) * 100 : 0,
+    };
+  }, [steps, progress]);
+
+  // Surface the cursor's live state to the side panel (kept in sync).
+  useEffect(() => {
+    if (!onLiveChange) return;
+    if (!current || !balance) {
+      onLiveChange(null);
+      return;
+    }
+    const priceContext = priceBands
+      ? current.price <= priceBands.p33
+        ? "cheap"
+        : current.price >= priceBands.p66
+          ? "pricey"
+          : "typical"
+      : null;
+    onLiveChange({
+      clock: formatMinutes(progress),
+      price: current.price,
+      priceContext,
+      pvSurplus: current.gridExport > 0.3,
+      batterySocPct: current.soc,
+      balance,
+    });
+  }, [onLiveChange, current, priceBands, progress, balance]);
 
   const hasHeatPump = household.data?.heatPump ?? false;
   const hasEv = household.data?.evCharger ?? false;
@@ -479,6 +568,9 @@ export function EnergyFlow({ householdId }: { householdId: string }) {
                     : "var(--muted-foreground)";
 
             const activeOpacity = smoothstep(0.04, 0.4, flow);
+            const r = n.r ?? NODE_R;
+            const small = r < NODE_R;
+            const isBattery = key === "battery";
             return (
               <g
                 key={key}
@@ -491,47 +583,53 @@ export function EnergyFlow({ householdId }: { householdId: string }) {
                 <circle
                   cx={n.x}
                   cy={n.y}
-                  r={NODE_R + 4}
+                  r={r + 4}
                   fill="none"
                   stroke={n.color}
                   strokeOpacity={0.18 * activeOpacity}
                   strokeWidth={Math.min(8, 3 + flow * 0.7)}
                   style={{ transition: "stroke-width 200ms ease-out" }}
                 />
-                <circle
-                  cx={n.x}
-                  cy={n.y}
-                  r={NODE_R}
-                  fill="var(--card)"
-                  stroke={active ? n.color : "var(--border)"}
-                  strokeOpacity={active ? 0.55 : 1}
-                  strokeWidth={1.5}
-                />
 
-                {/* Battery SoC arc */}
-                {key === "battery" && current && (
-                  <BatterySoc cx={n.x} cy={n.y} r={NODE_R - 3} pct={current.soc} />
+                {/* Filled disc */}
+                <circle cx={n.x} cy={n.y} r={r} fill="var(--card)" />
+
+                {isBattery && current ? (
+                  /* Battery: progress donut (track + SoC arc) doubles as border. */
+                  <BatterySoc cx={n.x} cy={n.y} r={r} pct={current.soc} />
+                ) : (
+                  /* Other nodes: single thin border. */
+                  <circle
+                    cx={n.x}
+                    cy={n.y}
+                    r={r}
+                    fill="none"
+                    stroke={active ? n.color : "var(--border)"}
+                    strokeOpacity={active ? 0.55 : 1}
+                    strokeWidth={1.5}
+                  />
                 )}
 
                 <NodeIcon
                   icon={
-                    key === "battery"
+                    isBattery
                       ? (current?.batteryCharge ?? 0) > 0.05
                         ? BatteryCharging
                         : Battery
                       : n.icon
                   }
                   x={n.x}
-                  y={n.y - 6}
+                  y={n.y - (small ? 5 : 6)}
                   color={active ? n.color : "var(--muted-foreground)"}
+                  size={small ? 16 : 20}
                 />
 
                 {/* Live value */}
                 <text
                   x={n.x}
-                  y={n.y + 17}
+                  y={n.y + (small ? 14 : 17)}
                   textAnchor="middle"
-                  fontSize={11}
+                  fontSize={small ? 10 : 11}
                   fontWeight={600}
                   fill={valueColor}
                   fontFamily="var(--font-mono)"
@@ -542,14 +640,14 @@ export function EnergyFlow({ householdId }: { householdId: string }) {
                 {/* Label */}
                 <text
                   x={n.x}
-                  y={n.y + NODE_R + 16}
+                  y={n.y + r + 16}
                   textAnchor="middle"
                   fontSize={11}
                   fill="var(--muted-foreground)"
                   fontWeight={500}
                 >
                   {n.label}
-                  {key === "battery" && current ? ` · ${current.soc.toFixed(0)}%` : ""}
+                  {isBattery && current ? ` · ${current.soc.toFixed(0)}%` : ""}
                 </text>
               </g>
             );
@@ -558,7 +656,7 @@ export function EnergyFlow({ householdId }: { householdId: string }) {
       </div>
 
       {/* Timeline: sunrise → sunset, scrubbable */}
-      <div className="px-5 pb-5">
+      <div className="px-5 pt-4 pb-5">
         <div
           role="slider"
           aria-label="Time of day"
@@ -684,13 +782,14 @@ function NodeIcon({
   x,
   y,
   color,
+  size = 20,
 }: {
   icon: LucideIcon;
   x: number;
   y: number;
   color: string;
+  size?: number;
 }) {
-  const size = 20;
   // Lucide renders an <svg>; nest it and position via x/y attributes.
   return (
     <Icon
@@ -720,17 +819,29 @@ function BatterySoc({
   const color =
     pct > 60 ? "var(--brand)" : pct > 25 ? "var(--primary)" : "var(--destructive)";
   return (
-    <circle
-      cx={cx}
-      cy={cy}
-      r={r}
-      fill="none"
-      stroke={color}
-      strokeOpacity={0.6}
-      strokeWidth={3}
-      strokeLinecap="round"
-      strokeDasharray={`${frac * circumference} ${circumference}`}
-      transform={`rotate(-90 ${cx} ${cy})`}
-    />
+    <>
+      {/* Track: the unfilled remainder of the ring. */}
+      <circle
+        cx={cx}
+        cy={cy}
+        r={r}
+        fill="none"
+        stroke="var(--border)"
+        strokeWidth={2.5}
+      />
+      {/* SoC arc on top — this is the battery's only border. */}
+      <circle
+        cx={cx}
+        cy={cy}
+        r={r}
+        fill="none"
+        stroke={color}
+        strokeWidth={2.5}
+        strokeLinecap="round"
+        strokeDasharray={`${frac * circumference} ${circumference}`}
+        transform={`rotate(-90 ${cx} ${cy})`}
+        style={{ transition: "stroke-dasharray 200ms ease-out" }}
+      />
+    </>
   );
 }

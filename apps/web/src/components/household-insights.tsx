@@ -1,8 +1,16 @@
 "use client";
 
-import { useMemo } from "react";
-import { Battery, Sparkles, Zap } from "lucide-react";
-import { trpc } from "@/lib/trpc/client";
+import {
+  ArrowUpFromLine,
+  Battery,
+  Gauge,
+  Home,
+  Sparkles,
+  Sun,
+  Zap,
+  type LucideIcon,
+} from "lucide-react";
+import type { LiveSnapshot } from "@/components/charts/energy-flow";
 
 const num = (n: number, digits = 0) =>
   n.toLocaleString("de-DE", {
@@ -11,66 +19,92 @@ const num = (n: number, digits = 0) =>
   });
 
 const PRICE_CONTEXT: Record<string, { label: string; className: string }> = {
-  cheap: { label: "günstig", className: "text-brand" },
-  typical: { label: "typisch", className: "text-muted-foreground" },
-  pricey: { label: "teuer", className: "text-destructive" },
+  cheap: { label: "günstig", className: "bg-brand/10 text-brand" },
+  typical: { label: "typisch", className: "bg-muted text-muted-foreground" },
+  pricey: { label: "teuer", className: "bg-destructive/10 text-destructive" },
 };
 
-function Row({
-  label,
-  value,
-  unit,
-}: {
-  label: string;
-  value: string;
-  unit?: string;
-}) {
+function socColor(pct: number) {
+  return pct > 60 ? "var(--brand)" : pct > 25 ? "var(--primary)" : "var(--destructive)";
+}
+
+function BatteryRing({ pct }: { pct: number }) {
+  const r = 18;
+  const c = 2 * Math.PI * r;
+  const frac = Math.min(Math.max(pct / 100, 0), 1);
+  const color = socColor(pct);
   return (
-    <div className="flex items-baseline justify-between gap-2">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="text-sm font-semibold tabular-nums">
-        {value}
-        {unit && (
-          <span className="ml-1 text-xs font-normal text-muted-foreground">
-            {unit}
-          </span>
-        )}
-      </span>
+    <div className="relative size-12 shrink-0">
+      <svg viewBox="0 0 44 44" className="size-12 -rotate-90">
+        <circle
+          cx={22}
+          cy={22}
+          r={r}
+          fill="none"
+          stroke="var(--border)"
+          strokeWidth={3.5}
+        />
+        <circle
+          cx={22}
+          cy={22}
+          r={r}
+          fill="none"
+          stroke={color}
+          strokeWidth={3.5}
+          strokeLinecap="round"
+          strokeDasharray={`${frac * c} ${c}`}
+          className="transition-[stroke-dasharray] duration-700 ease-out"
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <Battery className="size-3 text-muted-foreground" />
+        <span className="text-[11px] font-semibold tabular-nums leading-none">
+          {num(pct)}
+        </span>
+      </div>
     </div>
   );
 }
 
-export function HouseholdInsights({ householdId }: { householdId: string }) {
-  const savings = trpc.bills.savings.useQuery({ householdId });
-  const days = trpc.energy.availableDays.useQuery({ householdId });
-  const day = days.data?.defaultDay ?? null;
-
-  const intraday = trpc.energy.intraday.useQuery(
-    { householdId, day: day ?? "" },
-    { enabled: !!day },
+function MetricTile({
+  icon: Icon,
+  value,
+  unit,
+  label,
+  accent,
+}: {
+  icon: LucideIcon;
+  value: string;
+  unit: string;
+  label: string;
+  accent?: boolean;
+}) {
+  return (
+    <div className="rounded-lg border border-border p-2.5">
+      <Icon
+        className={`size-3.5 ${accent ? "text-brand" : "text-muted-foreground"}`}
+      />
+      <div className="mt-1.5 text-sm font-semibold tabular-nums">
+        {value}
+        <span className="ml-0.5 text-xs font-normal text-muted-foreground">
+          {unit}
+        </span>
+      </div>
+      <div className="text-[11px] text-muted-foreground">{label}</div>
+    </div>
   );
+}
 
-  // Daily balance: kW samples are 15-min apart -> kWh = sum(kW) * 0.25.
-  const balance = useMemo(() => {
-    const rows = intraday.data;
-    if (!rows?.length) return null;
-    const pv = rows.reduce((s, r) => s + r.pv, 0) * 0.25;
-    const consumption = rows.reduce((s, r) => s + r.consumption, 0) * 0.25;
-    const gridImport = rows.reduce((s, r) => s + r.gridImport, 0) * 0.25;
-    const gridExport = rows.reduce((s, r) => s + r.gridExport, 0) * 0.25;
-    const selfConsumption = pv > 0 ? ((pv - gridExport) / pv) * 100 : 0;
-    return { pv, consumption, gridImport, gridExport, selfConsumption };
-  }, [intraday.data]);
-
-  const now = savings.data?.now;
-  const ctx = now?.priceContext ? PRICE_CONTEXT[now.priceContext] : null;
+export function HouseholdInsights({ live }: { live: LiveSnapshot | null }) {
+  const balance = live?.balance ?? null;
+  const ctx = live?.priceContext ? PRICE_CONTEXT[live.priceContext] : null;
 
   return (
     <div className="flex h-full flex-col gap-px bg-border">
       {/* Live status */}
       <div className="bg-card p-5">
         <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {now?.pvSurplus ? (
+          {live?.pvSurplus ? (
             <Sparkles className="size-3.5 text-brand" />
           ) : (
             <Zap className="size-3.5" />
@@ -78,48 +112,24 @@ export function HouseholdInsights({ householdId }: { householdId: string }) {
           Jetzt gerade
         </div>
 
-        {now ? (
-          <div className="mt-3 space-y-2.5">
-            <div className="flex items-baseline justify-between gap-2">
-              <span className="text-xs text-muted-foreground">Strompreis</span>
-              <span className="text-sm font-semibold tabular-nums">
-                {num(now.price, 2)}
-                <span className="ml-1 text-xs font-normal text-muted-foreground">
-                  €/kWh
+        {live ? (
+          <div className="mt-3 flex items-center justify-between gap-4 animate-in fade-in">
+            <div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-2xl font-semibold tabular-nums">
+                  {num(live.price, 2)}
                 </span>
-                {ctx && (
-                  <span className={`ml-1.5 text-xs font-medium ${ctx.className}`}>
-                    {ctx.label}
-                  </span>
-                )}
-              </span>
-            </div>
-
-            <div className="flex items-baseline justify-between gap-2">
-              <span className="text-xs text-muted-foreground">
-                Solarüberschuss
-              </span>
-              <span
-                className={`text-sm font-semibold ${
-                  now.pvSurplus ? "text-brand" : "text-muted-foreground"
-                }`}
-              >
-                {now.pvSurplus ? "ja" : "nein"}
-              </span>
-            </div>
-
-            <div className="flex items-baseline justify-between gap-2">
-              <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                <Battery className="size-3.5" />
-                Batterie
-              </span>
-              <span className="text-sm font-semibold tabular-nums">
-                {num(now.batterySocPct)}
-                <span className="ml-1 text-xs font-normal text-muted-foreground">
-                  %
+                <span className="text-xs text-muted-foreground">€/kWh</span>
+              </div>
+              {ctx && (
+                <span
+                  className={`mt-1.5 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${ctx.className}`}
+                >
+                  {ctx.label}
                 </span>
-              </span>
+              )}
             </div>
+            <BatteryRing pct={live.batterySocPct} />
           </div>
         ) : (
           <p className="mt-3 text-sm text-muted-foreground">
@@ -129,34 +139,65 @@ export function HouseholdInsights({ householdId }: { householdId: string }) {
       </div>
 
       {/* Daily balance */}
-      <div className="flex-1 bg-card p-5">
+      <div className="flex flex-1 flex-col bg-card p-5">
         <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Tagesbilanz
+          Tagesbilanz{live ? ` · bis ${live.clock}` : ""}
         </div>
 
         {balance ? (
-          <div className="mt-3 space-y-2.5">
-            <Row label="Solarertrag" value={num(balance.pv, 1)} unit="kWh" />
-            <Row
-              label="Verbrauch"
-              value={num(balance.consumption, 1)}
-              unit="kWh"
-            />
-            <Row
-              label="Netzbezug"
-              value={num(balance.gridImport, 1)}
-              unit="kWh"
-            />
-            <Row
-              label="Einspeisung"
-              value={num(balance.gridExport, 1)}
-              unit="kWh"
-            />
-            <Row
-              label="Eigenverbrauch"
-              value={num(balance.selfConsumption)}
-              unit="%"
-            />
+          <div className="mt-3 flex flex-1 flex-col justify-between gap-3 animate-in fade-in">
+            <div className="grid grid-cols-2 gap-2">
+              <MetricTile
+                icon={Sun}
+                value={num(balance.pv, 1)}
+                unit="kWh"
+                label="Solarertrag"
+                accent
+              />
+              <MetricTile
+                icon={Home}
+                value={num(balance.consumption, 1)}
+                unit="kWh"
+                label="Verbrauch"
+              />
+              <MetricTile
+                icon={Zap}
+                value={num(balance.gridImport, 1)}
+                unit="kWh"
+                label="Netzbezug"
+              />
+              <MetricTile
+                icon={ArrowUpFromLine}
+                value={num(balance.gridExport, 1)}
+                unit="kWh"
+                label="Einspeisung"
+                accent
+              />
+            </div>
+
+            {/* Self-consumption — the household success metric */}
+            <div className="rounded-lg border border-border p-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Gauge className="size-3.5" />
+                  Eigenverbrauch
+                </span>
+                <span className="text-sm font-semibold tabular-nums">
+                  {num(balance.selfConsumption)}
+                  <span className="ml-0.5 text-xs font-normal text-muted-foreground">
+                    %
+                  </span>
+                </span>
+              </div>
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-border">
+                <div
+                  className="h-full rounded-full bg-brand transition-[width] duration-700 ease-out"
+                  style={{
+                    width: `${Math.min(Math.max(balance.selfConsumption, 0), 100)}%`,
+                  }}
+                />
+              </div>
+            </div>
           </div>
         ) : (
           <p className="mt-3 text-sm text-muted-foreground">

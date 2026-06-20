@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import {
   Area,
   AreaChart,
@@ -10,6 +9,13 @@ import {
   YAxis,
 } from "recharts";
 import { trpc } from "@/lib/trpc/client";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const MONTHS = [
   "January",
@@ -28,14 +34,46 @@ const MONTHS = [
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
-const RANGES = MONTHS.map((label, i) => ({
+export const ENERGY_RANGES = MONTHS.map((label, i) => ({
   label,
   from: `2025-${pad(i + 1)}-01`,
   to: i === 11 ? "2026-01-01" : `2025-${pad(i + 2)}-01`,
 }));
 
-export function EnergyChart({ householdId }: { householdId: string }) {
-  const [range, setRange] = useState(RANGES[6]);
+export const ENERGY_DEFAULT_MONTH = ENERGY_RANGES[6].label;
+
+export function EnergyMonthSelect({
+  month,
+  onMonthChange,
+}: {
+  month: string;
+  onMonthChange: (month: string) => void;
+}) {
+  return (
+    <Select value={month} onValueChange={onMonthChange}>
+      <SelectTrigger size="sm" className="w-36">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {ENERGY_RANGES.map((r) => (
+          <SelectItem key={r.label} value={r.label}>
+            {r.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+export function EnergyChart({
+  householdId,
+  month,
+}: {
+  householdId: string;
+  month: string;
+}) {
+  const range =
+    ENERGY_RANGES.find((r) => r.label === month) ?? ENERGY_RANGES[6];
   const daily = trpc.energy.daily.useQuery({
     householdId,
     from: range.from,
@@ -52,21 +90,6 @@ export function EnergyChart({ householdId }: { householdId: string }) {
 
   return (
     <div>
-      <div className="mb-3 flex gap-2">
-        <select
-          value={range.label}
-          onChange={(e) =>
-            setRange(RANGES.find((r) => r.label === e.target.value) ?? RANGES[6])
-          }
-          className="rounded-md border border-border bg-card px-2.5 py-1 text-xs text-foreground transition-colors hover:border-primary/50 focus:border-primary focus:outline-none"
-        >
-          {RANGES.map((r) => (
-            <option key={r.label} value={r.label}>
-              {r.label}
-            </option>
-          ))}
-        </select>
-      </div>
       {!daily.data ? (
         <div className="h-64 animate-pulse rounded bg-muted" />
       ) : (

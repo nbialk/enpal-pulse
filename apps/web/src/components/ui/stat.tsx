@@ -1,24 +1,3 @@
-export function Card({
-  title,
-  children,
-  className = "",
-}: {
-  title?: string;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <section
-      className={`rounded-xl border border-border bg-card p-5 ${className}`}
-    >
-      {title && (
-        <h2 className="mb-4 text-sm font-medium text-muted-foreground">{title}</h2>
-      )}
-      {children}
-    </section>
-  );
-}
-
 export function Stat({
   label,
   value,

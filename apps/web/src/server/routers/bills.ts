@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { prisma } from "@enpal/db";
+import { prisma, buildHouseholdFacts } from "@enpal/db";
 import { router, publicProcedure } from "../trpc";
 
 export const billsRouter = router({
@@ -17,26 +17,17 @@ export const billsRouter = router({
   savings: publicProcedure
     .input(z.object({ householdId: z.string() }))
     .query(async ({ input }) => {
-      const bills = await prisma.monthlyBill.findMany({
-        where: { householdId: input.householdId },
-        orderBy: { month: "asc" },
-      });
-
-      // Standard reference: the flat "fixed" tariff every German household could pick.
       const fixed = await prisma.tariff.findFirst({ where: { type: "fixed" } });
-      const standardRate = fixed?.energyRateEur ?? 0.349;
-      const standardBaseFee = fixed?.baseFeeEur ?? 11.5;
 
-      const totalConsumption = bills.reduce((s, b) => s + b.consumptionKwh, 0);
-      const actualBill = bills.reduce((s, b) => s + b.totalBillEur, 0);
-
-      // What the same consumption would cost on the standard flat tariff,
-      // keeping the household's PV feed-in credit (PV is not affected by tariff choice).
-      const feedInCredit = bills.reduce((s, b) => s + b.feedInCreditEur, 0);
+      // Tariff counterfactual from the shared insight engine: actual annual
+      // import cost vs. the alternative tariff, using real grid import (not a
+      // flat consumption proxy). Feed-in is tariff-independent, so it cancels.
+      const facts = await buildHouseholdFacts(prisma, input.householdId);
+      const actualBill = facts?.actualEnergyEur ?? 0;
       const standardBill =
-        totalConsumption * standardRate +
-        standardBaseFee * bills.length -
-        feedInCredit;
+        facts?.tariffType === "fixed"
+          ? facts.dynamicEnergyEur
+          : (facts?.fixedEnergyEur ?? 0);
 
       const savings = standardBill - actualBill;
 
@@ -70,12 +61,17 @@ export const billsRouter = router({
         pvSurplus = latest.gridExportKw > 0.3;
       }
 
+      const alternativeName =
+        facts?.tariffType === "fixed"
+          ? "dynamischen Tarif"
+          : (fixed?.name ?? "Standardtarif");
+
       return {
         actualBill,
         standardBill,
         savings,
         savingsPct: standardBill > 0 ? (savings / standardBill) * 100 : 0,
-        standardTariffName: fixed?.name ?? "Standardtarif",
+        standardTariffName: alternativeName,
         now: latest
           ? {
               timestamp: latest.timestamp.toISOString(),
