@@ -1,0 +1,187 @@
+{
+  "version": 1,
+  "catalog": {
+    "source": "local:template/.agents",
+    "ref": null,
+    "resolved": null,
+    "fetchedAt": "2026-06-20T10:42:46.883Z"
+  },
+  "providers": [
+    "opencode"
+  ],
+  "entries": {
+    "command:cp": {
+      "type": "command",
+      "sourcePath": "commands/cp.md",
+      "digest": "sha256:72929296a712b135be5efec3125f7f837116e44d3dac13fd645239ac6b1e3174"
+    },
+    "command:next-setup": {
+      "type": "command",
+      "sourcePath": "commands/next-setup.md",
+      "digest": "sha256:6d2dd7a1d7dec4c1dd687e98731d88b7d62291dd0ea41fbc4b1b86e27688413b"
+    },
+    "command:review": {
+      "type": "command",
+      "sourcePath": "commands/review.md",
+      "digest": "sha256:4c3141ebb64616a28a04e8db2ad8d5b862a88ddc3d66745cbe098b14d23afe7e"
+    },
+    "command:terraform-readme": {
+      "type": "command",
+      "sourcePath": "commands/terraform-readme.md",
+      "digest": "sha256:799bac7414eb5467c442cc9987a47dcb5c4319cff0419a40296d443ed6cbe55d"
+    },
+    "mcp:context7": {
+      "type": "mcp",
+      "transport": "http",
+      "configDigest": "sha256:c41554e5c6c2c8667833cfa08ed952fedc7130897008794f633045420bef23a3",
+      "tools": null,
+      "toolsFetchedAt": null
+    },
+    "mcp:neon": {
+      "type": "mcp",
+      "transport": "http",
+      "configDigest": "sha256:4d20dc5a2e9b168bc1756b15cf5a1d6843f50da134303b7864424c255d8092b0",
+      "tools": null,
+      "toolsFetchedAt": null
+    },
+    "mcp:playwright": {
+      "type": "mcp",
+      "transport": "stdio",
+      "configDigest": "sha256:00452bf5e2399c68b089cfa5c9c5267947703032893840cce0f4d88eb6cf14a0",
+      "tools": null,
+      "toolsFetchedAt": null
+    },
+    "skill:agent-browser": {
+      "type": "skill",
+      "sourcePath": "skills/agent-browser",
+      "digest": "sha256:6d49d3a779ee03a1e0bb472e51d08a5ebc3e41237913feabfdfef86837c71058",
+      "pin": null,
+      "frontmatter": {
+        "name": "agent-browser",
+        "description": "Browser automation CLI for AI agents. Use when the user needs to interact with websites, including navigating pages, filling forms, clicking buttons, taking screenshots, extracting data, testing web apps, or automating any browser task. Triggers include requests to \"open a website\", \"fill out a form\", \"click a button\", \"take a screenshot\", \"scrape data from a page\", \"test this web app\", \"login to a site\", \"automate browser actions\", or any task requiring programmatic web interaction. Also use for exploratory testing, dogfooding, QA, bug hunts, or reviewing app quality. Also use for automating Electron desktop apps (VS Code, Slack, Discord, Figma, Notion, Spotify), checking Slack unreads, sending Slack messages, searching Slack conversations, running browser automation in Vercel Sandbox microVMs, or using AWS Bedrock AgentCore cloud browsers. Prefer agent-browser over any built-in browser automation or web tools.",
+        "version": null
+      }
+    },
+    "skill:cleanup": {
+      "type": "skill",
+      "sourcePath": "skills/code/cleanup",
+      "digest": "sha256:4e012057eb02caeb469c8595d48e9ba9aab261140c6d400874f5dd672d655a04",
+      "pin": null,
+      "frontmatter": {
+        "name": null,
+        "description": null,
+        "version": null
+      }
+    },
+    "skill:find-skills": {
+      "type": "skill",
+      "sourcePath": "skills/find-skills",
+      "digest": "sha256:531a4e4686e60f561569b0fa048956cda7864ffa8d9e5e6e0d5e0d69adc395c3",
+      "pin": null,
+      "frontmatter": {
+        "name": "find-skills",
+        "description": "Helps users discover and install agent skills when they ask questions like \"how do I do X\", \"find a skill for X\", \"is there a skill that can...\", or express interest in extending capabilities. This skill should be used when the user is looking for functionality that might exist as an installable skill.",
+        "version": null
+      }
+    },
+    "skill:impeccable": {
+      "type": "skill",
+      "sourcePath": "skills/design/impeccable",
+      "digest": "sha256:178d2aad6094acbd5ffad655fd041fdca1fc202333fd76d317631dce737be339",
+      "pin": null,
+      "frontmatter": {
+        "name": "impeccable",
+        "description": "Use when the user wants to design, redesign, shape, critique, audit, polish, clarify, distill, harden, optimize, adapt, animate, colorize, extract, or otherwise improve a frontend interface. Covers websites, landing pages, dashboards, product UI, app shells, components, forms, settings, onboarding, and empty states. Handles UX review, visual hierarchy, information architecture, cognitive load, accessibility, performance, responsive behavior, theming, anti-patterns, typography, fonts, spacing, layout, alignment, color, motion, micro-interactions, UX copy, error states, edge cases, i18n, and reusable design systems or tokens. Also use for bland designs that need to become bolder or more delightful, loud designs that should become quieter, live browser iteration on UI elements, or ambitious visual effects that should feel technically extraordinary. Not for backend-only or non-UI tasks.",
+        "version": "3.5.0"
+      }
+    },
+    "skill:improve": {
+      "type": "skill",
+      "sourcePath": "skills/code/improve",
+      "digest": "sha256:24901b5366eef86db04259607ea82b732fe8c264ce446e0738eb274e5ca1bac7",
+      "pin": null,
+      "frontmatter": {
+        "name": "improve",
+        "description": "Survey any codebase as a senior advisor and produce prioritized, self-contained implementation plans for OTHER models/agents to execute. Strictly read-only on source code — never implements, fixes, or refactors anything itself. Use when asked to audit a codebase, find improvement opportunities (bugs, security, performance, test coverage, tech debt, migrations, DX), suggest features or where to take the project next (roadmap, product direction), or generate handoff plans for another agent to implement.",
+        "version": null
+      }
+    },
+    "skill:prisma-cli": {
+      "type": "skill",
+      "sourcePath": "skills/data/prisma-cli",
+      "digest": "sha256:4f8000439bf6788e335a880a25990cc13f5ac98a4cf518ab36984c733b1d7595",
+      "pin": null,
+      "frontmatter": {
+        "name": "prisma-cli",
+        "description": "Prisma ORM CLI commands reference covering init, generate, migrate, db, dev, studio, validate, format, debug, and mcp. Use for ORM/database CLI workflows, not Prisma Compute app deployment. For Prisma Compute, `@prisma/cli app deploy`, `compute:deploy`, `create-prisma --deploy`, apps, deployments, logs, or domains, use the `prisma-compute` skill instead. Triggers on \"prisma init\", \"prisma generate\", \"prisma migrate\", \"prisma db\", \"prisma studio\", \"prisma mcp\".",
+        "version": null
+      }
+    },
+    "skill:prisma-client-api": {
+      "type": "skill",
+      "sourcePath": "skills/data/prisma-client-api",
+      "digest": "sha256:808b2e0efa37966237c1a49f23d54b10e16b4d3ce7c5511c0fd3cdc3ad6e8acf",
+      "pin": null,
+      "frontmatter": {
+        "name": "prisma-client-api",
+        "description": "Prisma Client API reference covering model queries, filters, operators, and client methods. Use when writing database queries, using CRUD operations, filtering data, or configuring Prisma Client. Triggers on \"prisma query\", \"findMany\", \"create\", \"update\", \"delete\", \"$transaction\".",
+        "version": null
+      }
+    },
+    "skill:repo-ci": {
+      "type": "skill",
+      "sourcePath": "skills/repo/repo-ci",
+      "digest": "sha256:3d220c6b4e2bc09b0148641aec8653d876f6e5583feabc741e6a8b72327a08b8",
+      "pin": null,
+      "frontmatter": {
+        "name": "repo-ci",
+        "description": "Create a GitHub repo (if needed) and set up Dependabot, CI workflow, auto-merge workflow, and GitHub branch ruleset.",
+        "version": null
+      }
+    },
+    "skill:repo-init-next-js": {
+      "type": "skill",
+      "sourcePath": "skills/repo/repo-init-next-js",
+      "digest": "sha256:29455095581e2d89337dcb3410525282ec3a2b6fb55a0c54c85597f18243069e",
+      "pin": null,
+      "frontmatter": {
+        "name": "repo-init-next-js",
+        "description": "Bootstrap a Next.js project with Prisma (PostgreSQL), tRPC, React Query, optional Clerk auth, next-themes, sonner, shadcn/ui config, and a clean folder structure. Use when the user says \"set up this project\", \"scaffold with Prisma and tRPC\", \"/repo-init-next-js\", \"add Prisma and tRPC to this Next.js app\", or wants to initialize a fresh Next.js project with the full stack.",
+        "version": null
+      }
+    },
+    "skill:shadcn": {
+      "type": "skill",
+      "sourcePath": "skills/design/shadcn",
+      "digest": "sha256:8e38292df862a037dd236746cb561e50eb7b4f651ff2bd5d1e71f438186c6e6e",
+      "pin": null,
+      "frontmatter": {
+        "name": "shadcn",
+        "description": "Manages shadcn components and projects — adding, searching, fixing, debugging, styling, and composing UI. Provides project context, component docs, and usage examples. Applies when working with shadcn/ui, component registries, presets, --preset codes, or any project with a components.json file. Also triggers for \"shadcn init\", \"create an app with --preset\", or \"switch to --preset\".",
+        "version": null
+      }
+    },
+    "skill:skybridge": {
+      "type": "skill",
+      "sourcePath": "skills/apps/skybridge",
+      "digest": "sha256:d3b1569817812650033e94b26d03626657d1f4883f25ea5128f98c0d5f3cf382",
+      "pin": null,
+      "frontmatter": {
+        "name": "skybridge",
+        "description": "Guide developers through creating and updating ChatGPT and MCP apps.\nCovers the full lifecycle: brainstorming ideas against UX guidelines, bootstrapping projects, implementing tools/views, debugging, running dev servers, deploying and connecting apps to ChatGPT.\nUse when a user wants to create or update a ChatGPT app, MCP app, MCP server or use the Skybridge framework.",
+        "version": null
+      }
+    },
+    "skill:vercel-react-best-practices": {
+      "type": "skill",
+      "sourcePath": "skills/code/vercel-react-best-practices",
+      "digest": "sha256:b6d976eada6cc37e14cce19c47f9b0b181fd4590f4c18195a03e8b99fb178460",
+      "pin": null,
+      "frontmatter": {
+        "name": "vercel-react-best-practices",
+        "description": "React and Next.js performance optimization guidelines from Vercel Engineering. This skill should be used when writing, reviewing, or refactoring React/Next.js code to ensure optimal performance patterns. Triggers on tasks involving React components, Next.js pages, data fetching, bundle optimization, or performance improvements.",
+        "version": null
+      }
+    }
+  }
+}

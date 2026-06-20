@@ -1,0 +1,41 @@
+{
+  "shared": {
+    "devCommand": "pnpm run dev"
+  },
+  "mcpServers": {
+    "context7": {
+      "transport": "http",
+      "url": "https://mcp.context7.com/mcp"
+    },
+    "neon": {
+      "transport": "http",
+      "url": "https://mcp.neon.tech/mcp",
+      "headers": {
+        "Authorization": "Bearer ${NEON_API_KEY}"
+      }
+    },
+    "playwright": {
+      "transport": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@latest",
+        "--isolated"
+      ]
+    }
+  },
+  "claude": {
+    "settings": {
+      "permissions": {
+        "allow": [
+          "Bash(pnpm run:*)",
+          "Bash(pnpm exec:*)",
+          "Bash(gh pr:*)",
+          "Bash(gh release:*)",
+          "Bash(git:*)"
+        ]
+      },
+      "enableAllProjectMcpServers": true
+    }
+  }
+}
