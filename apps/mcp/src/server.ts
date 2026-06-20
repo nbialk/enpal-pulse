@@ -619,6 +619,283 @@ const server = new McpServer(
         recommended,
         summary,
       };
+       return { structuredContent, content: summary };
+    },
+  )
+  .registerTool(
+    {
+      name: "optimize",
+      description:
+        "Answer 'how could I optimize my charging/usage?' AND 'should I switch to the fixed/dynamic tariff?' for one household. Compares the WHOLE-HOUSE bill under both tariffs (fixed flat rate vs dynamic spot+adder) at the household's actual usage, and — for EV households — quantifies how much smarter charging (shifting EV load to PV-surplus and the cheapest spot hours) would save under a dynamic tariff. Gives a flexibility-aware verdict (which tariff wins now vs with smart charging). NOW-safe: never reads future data.",
+      inputSchema: {
+        householdId: z.string().describe("Household id, e.g. HH-1001"),
+        period: z
+          .string()
+          .regex(/^\d{4}$|^\d{4}-\d{2}$/)
+          .optional()
+          .describe(
+            "Analysis window as YYYY or YYYY-MM. Default = full year of NOW. Clipped to NOW (no future data).",
+          ),
+      },
+      annotations: { title: "Optimize & tariff advisor", ...readOnly },
+    },
+    async ({ householdId, period }) => {
+      const now = await getNow();
+      const household: Household & { tariff: Tariff } =
+        await prisma.household.findUniqueOrThrow({
+          where: { householdId },
+          include: { tariff: true },
+        });
+
+      // Tariff parameters come from the DB (Tariff table), NOT hardcoded, so
+      // this generalizes to any fixed/dynamic tariffs and any price changes.
+      const allTariffs: Tariff[] = await prisma.tariff.findMany();
+      const current = household.tariff;
+      // The "variable" tariff is whichever charges a spot adder; smart charging
+      // only pays off under such a tariff.
+      const dynamicTariff = allTariffs.find((t) => t.spotAdderEur != null);
+      const dynAdder = dynamicTariff?.spotAdderEur ?? 0;
+      const dynFeedIn = dynamicTariff?.feedInEur ?? current.feedInEur;
+
+      // Period window, clipped to NOW so we never read the future.
+      const yr = period?.slice(0, 4) ?? String(now.getUTCFullYear());
+      const from = period?.length === 7
+        ? new Date(`${period}-01T00:00:00Z`)
+        : new Date(`${yr}-01-01T00:00:00Z`);
+      const rawTo = period?.length === 7
+        ? new Date(new Date(`${period}-01T00:00:00Z`).setUTCMonth(from.getUTCMonth() + 1))
+        : new Date(`${Number(yr) + 1}-01-01T00:00:00Z`);
+      const to = rawTo > now ? now : rawTo;
+
+      const r2 = (v: number) => Math.round(v * 100) / 100;
+
+      // --- Whole-house tariff counterfactual (independent of actual tariff) ---
+      // We pull the raw spot-priced import cost; each tariff's retail cost is
+      // then derived from its own DB params.
+      type TotRow = {
+        months: number;
+        grid_import_kwh: number;
+        grid_export_kwh: number;
+        spot_import_cost_eur: number;
+      };
+      const [tot] = await prisma.$queryRaw<TotRow[]>`
+        SELECT
+          COUNT(DISTINCT date_trunc('month', er.timestamp)) AS months,
+          SUM(er.grid_import_kw) * 0.25 AS grid_import_kwh,
+          SUM(er.grid_export_kw) * 0.25 AS grid_export_kwh,
+          SUM(er.grid_import_kw * 0.25 * dp.spot_price_eur_per_kwh) AS spot_import_cost_eur
+        FROM energy_records er
+        JOIN dynamic_prices dp ON dp.timestamp = date_trunc('hour', er.timestamp)
+        WHERE er.household_id = ${householdId}
+          AND er.timestamp >= ${from}
+          AND er.timestamp < ${to}
+      `;
+      if (!tot || !tot.grid_import_kwh) {
+        const msg = `No energy data for ${householdId} in ${yr}.`;
+        return { structuredContent: { householdId, error: msg }, content: msg };
+      }
+      const months = Math.max(Number(tot.months), 1);
+      const gridImport = Number(tot.grid_import_kwh);
+      const gridExport = Number(tot.grid_export_kwh);
+      const spotImportCost = Number(tot.spot_import_cost_eur);
+
+      // Annual cost for THIS household's usage under any given tariff, derived
+      // purely from that tariff's DB params (energy rate / spot adder / base /
+      // feed-in). Returns null for unknown pricing models.
+      const totalFor = (t: Tariff): number | null => {
+        const base = t.baseFeeEur * months;
+        const credit = gridExport * t.feedInEur;
+        if (t.energyRateEur != null)
+          return gridImport * t.energyRateEur + base - credit; // flat rate
+        if (t.spotAdderEur != null)
+          return spotImportCost + t.spotAdderEur * gridImport + base - credit; // spot + adder
+        return null;
+      };
+
+      type Opt = { tariffId: string; name: string; type: string; totalEur: number };
+      const options: Opt[] = allTariffs
+        .map((t) => ({
+          tariffId: t.tariffId,
+          name: t.name,
+          type: t.type,
+          totalEur: totalFor(t),
+        }))
+        .filter((o): o is Opt => o.totalEur != null)
+        .map((o) => ({ ...o, totalEur: r2(o.totalEur) }))
+        .sort((a, b) => a.totalEur - b.totalEur);
+      const currentTotal = r2(totalFor(current) ?? 0);
+      const cheapestNow = options[0];
+      const deltaNow = Math.abs(currentTotal - cheapestNow.totalEur);
+
+      // --- EV charging behaviour & smart-charging potential (dynamic prices) ---
+      let charging:
+        | {
+            evKwh: number;
+            evWeightedAvgPriceEur: number;
+            pvCoincidenceKwh: number;
+            pvCoincidencePct: number;
+            evKwhInExpensiveDynamicHours: number;
+            smartChargingSavingsEurUnderDynamic: number;
+          }
+        | undefined;
+
+      if (household.evCharger) {
+        type HourRow = {
+          day: Date;
+          hour: number;
+          ev_kwh: number;
+          pv_surplus_kwh: number;
+          actual_price: number;
+          spot: number;
+        };
+        const hours = await prisma.$queryRaw<HourRow[]>`
+          SELECT
+            date_trunc('day', er.timestamp) AS day,
+            EXTRACT(HOUR FROM er.timestamp)::int AS hour,
+            SUM(er.ev_charging_kw) * 0.25 AS ev_kwh,
+            SUM(GREATEST(er.pv_production_kw - er.house_load_kw - er.heatpump_kw, 0)) * 0.25 AS pv_surplus_kwh,
+            AVG(er.price_eur_per_kwh) AS actual_price,
+            MAX(dp.spot_price_eur_per_kwh) AS spot
+          FROM energy_records er
+          JOIN dynamic_prices dp ON dp.timestamp = date_trunc('hour', er.timestamp)
+          WHERE er.household_id = ${householdId}
+            AND er.timestamp >= ${from}
+            AND er.timestamp < ${to}
+          GROUP BY day, hour
+          ORDER BY day, hour
+        `;
+
+        // Effective EUR/kWh of an hour: PV surplus is valued at the lost
+        // feed-in revenue (near-free), otherwise the dynamic retail price.
+        const EV_HOUR_CAP = 11; // nominal 11 kW charger => 11 kWh/h
+        const byDay = new Map<string, HourRow[]>();
+        for (const h of hours) {
+          const k = h.day.toISOString().slice(0, 10);
+          (byDay.get(k) ?? byDay.set(k, []).get(k)!).push(h);
+        }
+
+        let evKwh = 0;
+        let evWeightedPriceNum = 0;
+        let pvCoincidence = 0;
+        let expensiveKwh = 0;
+        let actualDynCost = 0;
+        let optimalDynCost = 0;
+
+        for (const dayHours of byDay.values()) {
+          const evDay = dayHours.reduce((s, h) => s + Number(h.ev_kwh), 0);
+          const dynRetail = dayHours.map((h) => Number(h.spot) + dynAdder);
+          const median = [...dynRetail].sort((a, b) => a - b)[
+            Math.floor(dynRetail.length / 2)
+          ];
+          const eff = dayHours.map((h, i) =>
+            Number(h.pv_surplus_kwh) > 0.2 ? dynFeedIn : dynRetail[i],
+          );
+
+          dayHours.forEach((h, i) => {
+            const ev = Number(h.ev_kwh);
+            evKwh += ev;
+            evWeightedPriceNum += ev * Number(h.actual_price);
+            if (Number(h.pv_surplus_kwh) > 0.2) pvCoincidence += ev;
+            if (dynRetail[i] > median) expensiveKwh += ev;
+            actualDynCost += ev * eff[i]; // EV at its real timing, dynamic price
+          });
+
+          // Optimal: re-place the day's EV kWh into the cheapest hours first.
+          const order = dayHours
+            .map((_, i) => i)
+            .sort((a, b) => eff[a] - eff[b]);
+          let remaining = evDay;
+          for (const i of order) {
+            if (remaining <= 0) break;
+            const put = Math.min(remaining, EV_HOUR_CAP);
+            optimalDynCost += put * eff[i];
+            remaining -= put;
+          }
+        }
+
+        const smartSavings = Math.max(actualDynCost - optimalDynCost, 0);
+        charging = {
+          evKwh: r2(evKwh),
+          evWeightedAvgPriceEur:
+            evKwh > 0 ? Number((evWeightedPriceNum / evKwh).toFixed(4)) : 0,
+          pvCoincidenceKwh: r2(pvCoincidence),
+          pvCoincidencePct: evKwh > 0 ? Math.round((pvCoincidence / evKwh) * 100) : 0,
+          evKwhInExpensiveDynamicHours: r2(expensiveKwh),
+          smartChargingSavingsEurUnderDynamic: r2(smartSavings),
+        };
+      }
+
+      // --- Flexibility-aware verdict -----------------------------------------
+      // Smart charging only lowers the variable (spot) tariff; flat tariffs are
+      // timing-invariant. Recompute the ranking with that discount applied.
+      const smart = charging?.smartChargingSavingsEurUnderDynamic ?? 0;
+      const optionsSmart: Opt[] = options
+        .map((o) =>
+          o.tariffId === dynamicTariff?.tariffId
+            ? { ...o, totalEur: r2(o.totalEur - smart) }
+            : o,
+        )
+        .sort((a, b) => a.totalEur - b.totalEur);
+      const cheapestSmart = optionsSmart[0];
+      const dynSmartTotal =
+        optionsSmart.find((o) => o.tariffId === dynamicTariff?.tariffId)?.totalEur ??
+        null;
+      const deltaSmart = Math.abs(currentTotal - cheapestSmart.totalEur);
+
+      const switchNow = cheapestNow.tariffId !== current.tariffId;
+      const switchSmart = cheapestSmart.tariffId !== current.tariffId;
+      const flips =
+        !!charging && smart > 0 && cheapestNow.tariffId !== cheapestSmart.tariffId;
+
+      const recommendation = !household.evCharger
+        ? switchNow
+          ? `Consider switching to ${cheapestNow.name} (~EUR ${r2(deltaNow)} cheaper/period).`
+          : `Stay on ${current.name}.`
+        : switchSmart
+          ? `Switch to ${cheapestSmart.name} and adopt smart charging.`
+          : `Stay on ${current.name}.`;
+
+      const note = !household.evCharger
+        ? `No EV: the main flexible loads (heat pump, battery) are auto-dispatched, so tariff choice mostly tracks total usage. ${cheapestNow.name} is the cheaper fit here.`
+        : flips
+          ? `At your CURRENT charging, ${cheapestNow.name} is cheaper by ~EUR ${r2(deltaNow)}. But shifting the EV into PV-surplus/cheap spot hours saves ~EUR ${r2(smart)} on ${dynamicTariff?.name}, which makes it the cheapest option.`
+          : smart > 0
+            ? `Smart charging would save ~EUR ${r2(smart)} on ${dynamicTariff?.name}, but it doesn't change which tariff wins (${cheapestSmart.name}).`
+            : `Charging timing barely moves the result here; ${cheapestNow.name} stays cheapest.`;
+
+      const summary = `${householdId} (${yr}): cheapest tariff at current usage is ${cheapestNow.name} (~EUR ${cheapestNow.totalEur}, current ${current.name} ~EUR ${currentTotal}). ${recommendation}`;
+
+      const structuredContent = {
+        householdId,
+        period: { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10), months },
+        currentTariffId: current.tariffId,
+        currentTariff: current.name,
+        currentTotalEur: currentTotal,
+        hasEv: household.evCharger,
+        gridImportKwh: r2(gridImport),
+        gridExportKwh: r2(gridExport),
+        tariffComparison: {
+          options, // every tariff in the DB, costed for this household's usage
+          cheapestAtCurrentBehavior: cheapestNow.tariffId,
+          deltaEur: r2(deltaNow),
+          assumes:
+            "Same physical usage; each tariff's rate/adder/base/feed-in read live from the Tariff table.",
+        },
+        charging,
+        verdict: {
+          withSmartCharging: {
+            dynamicTariffId: dynamicTariff?.tariffId ?? null,
+            dynamicTotalEur: dynSmartTotal,
+            cheapest: cheapestSmart.tariffId,
+            deltaEur: r2(deltaSmart),
+          },
+          recommendation,
+          note,
+          caveat:
+            "smartChargingSavings is an idealized upper bound: it assumes the full daily EV demand can be freely shifted into PV-surplus and the cheapest spot hours (11 kW cap). Real flexibility (departure times, battery competition) will capture less.",
+        },
+        summary,
+      };
       return { structuredContent, content: summary };
     },
   );

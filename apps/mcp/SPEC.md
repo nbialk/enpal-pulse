@@ -30,6 +30,7 @@ dynamic spot prices, and pre-detected insight events.
 | `insights` | view | Anomalies & nudges feed. |
 | `explain-contract` | tool | Returns contract terms text (NLP/grounding). |
 | `charge-advisor` | tool | When to charge the EV (PV-first). `now` = charge now? `plan` = best windows for a day. |
+| `optimize` | tool | "How do I optimize charging?" + "fixed vs dynamic tariff?". Whole-house tariff counterfactual + EV smart-charging potential, flexibility-aware verdict. |
 
 All tools are `readOnlyHint: true`, `openWorldHint: false`,
 `destructiveHint: false`.
@@ -47,8 +48,10 @@ future actuals.
 - Unified energy view → `household-overview`, `energy-balance`.
 - Conversational grounding → all views' `structuredContent` + `explain-contract`.
 - Why is my bill higher? → `bill-breakdown`.
-- Contract & tariff intelligence → `explain-contract`.
+- Contract & tariff intelligence → `explain-contract`, `optimize`.
 - Charging timing (now / today / tomorrow) → `charge-advisor`.
+- Optimize behaviour / switch tariff? → `optimize` (whole-house fixed-vs-dynamic
+  counterfactual + EV smart-charging savings; verdict flips on flexibility).
 - Proactive insights & nudges → `insights`.
 
 ## Out of scope
