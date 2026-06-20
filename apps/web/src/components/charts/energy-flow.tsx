@@ -73,7 +73,7 @@ type Edge = {
   color: string;
 };
 
-const SPEEDS = [1, 4, 8] as const;
+const SPEEDS = [1, 2] as const;
 const STEP_MS = 1100; // ms per quarter-hour at 1x (calmer continuous flow)
 const PV_ON = 0.05; // kW threshold treated as "sun is up"
 const NODE_R = 30;
@@ -103,6 +103,26 @@ function lerpStep(a: Step, b: Step, t: number): Step {
     soc: lerp(a.soc, b.soc, t),
     price: lerp(a.price, b.price, t),
   };
+}
+
+// "Now" mapped onto the historical dataset: today shifted back one year,
+// clamped into the available range. Falls back to the dataset default.
+function defaultDayFor(
+  min: string | null,
+  max: string | null,
+  fallback: string | null,
+) {
+  const now = new Date();
+  const lastYear = `${now.getFullYear() - 1}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  if (min && lastYear < min) return min;
+  if (max && lastYear > max) return max;
+  return min && max ? lastYear : fallback;
+}
+
+// Fractional step index for the current wall-clock time (15-min steps).
+function nowProgress() {
+  const now = new Date();
+  return (now.getHours() * 60 + now.getMinutes()) / 15;
 }
 
 // Continuous clock from fractional step progress (15-min steps).
@@ -198,7 +218,13 @@ export function EnergyFlow({ householdId }: { householdId: string }) {
   const days = trpc.energy.availableDays.useQuery({ householdId });
 
   const [day, setDay] = useState<string | null>(null);
-  const activeDay = day ?? days.data?.defaultDay ?? null;
+  const activeDay =
+    day ??
+    defaultDayFor(
+      days.data?.min ?? null,
+      days.data?.max ?? null,
+      days.data?.defaultDay ?? null,
+    );
 
   const intraday = trpc.energy.intraday.useQuery(
     { householdId, day: activeDay ?? "" },
@@ -208,17 +234,19 @@ export function EnergyFlow({ householdId }: { householdId: string }) {
   const steps = useMemo(() => (intraday.data ?? []) as Step[], [intraday.data]);
 
   // Continuous fractional position across steps (e.g. 12.6 = 60% to step 13).
-  const [progress, setProgress] = useState(0);
-  const [playing, setPlaying] = useState(true);
-  const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(4);
+  // Start paused at the current wall-clock time — a "right now" snapshot.
+  const [progress, setProgress] = useState(nowProgress);
+  const [playing, setPlaying] = useState(false);
+  const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(1);
   const rafRef = useRef<number | null>(null);
   const lastRef = useRef<number>(0);
 
-  // Reset to start when the day changes (render-time state adjustment).
-  const prevDayRef = useRef(activeDay);
-  if (prevDayRef.current !== activeDay) {
-    prevDayRef.current = activeDay;
-    setProgress(0);
+  // Jump to the current time of day whenever the selected day changes.
+  // Render-time adjustment per React's "storing previous value" pattern.
+  const [prevDay, setPrevDay] = useState(activeDay);
+  if (prevDay !== activeDay) {
+    setPrevDay(activeDay);
+    setProgress(nowProgress());
   }
 
   // Time-based animation loop: advance `progress` smoothly every frame.
