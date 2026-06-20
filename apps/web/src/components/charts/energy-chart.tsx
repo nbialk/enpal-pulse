@@ -11,15 +11,31 @@ import {
 } from "recharts";
 import { trpc } from "@/lib/trpc/client";
 
-const RANGES = [
-  { label: "January", from: "2025-01-01", to: "2025-02-01" },
-  { label: "April", from: "2025-04-01", to: "2025-05-01" },
-  { label: "July", from: "2025-07-01", to: "2025-08-01" },
-  { label: "October", from: "2025-10-01", to: "2025-11-01" },
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 
+const pad = (n: number) => String(n).padStart(2, "0");
+
+const RANGES = MONTHS.map((label, i) => ({
+  label,
+  from: `2025-${pad(i + 1)}-01`,
+  to: i === 11 ? "2026-01-01" : `2025-${pad(i + 2)}-01`,
+}));
+
 export function EnergyChart({ householdId }: { householdId: string }) {
-  const [range, setRange] = useState(RANGES[2]);
+  const [range, setRange] = useState(RANGES[6]);
   const daily = trpc.energy.daily.useQuery({
     householdId,
     from: range.from,
@@ -37,19 +53,19 @@ export function EnergyChart({ householdId }: { householdId: string }) {
   return (
     <div>
       <div className="mb-3 flex gap-2">
-        {RANGES.map((r) => (
-          <button
-            key={r.label}
-            onClick={() => setRange(r)}
-            className={`rounded-md border px-2.5 py-1 text-xs transition-colors ${
-              r.label === range.label
-                ? "border-primary text-primary"
-                : "border-border text-muted-foreground hover:border-primary/50"
-            }`}
-          >
-            {r.label}
-          </button>
-        ))}
+        <select
+          value={range.label}
+          onChange={(e) =>
+            setRange(RANGES.find((r) => r.label === e.target.value) ?? RANGES[6])
+          }
+          className="rounded-md border border-border bg-card px-2.5 py-1 text-xs text-foreground transition-colors hover:border-primary/50 focus:border-primary focus:outline-none"
+        >
+          {RANGES.map((r) => (
+            <option key={r.label} value={r.label}>
+              {r.label}
+            </option>
+          ))}
+        </select>
       </div>
       {!daily.data ? (
         <div className="h-64 animate-pulse rounded bg-muted" />
@@ -58,8 +74,8 @@ export function EnergyChart({ householdId }: { householdId: string }) {
           <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
             <defs>
               <linearGradient id="pv" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.5} />
-                <stop offset="95%" stopColor="var(--accent)" stopOpacity={0} />
+                <stop offset="5%" stopColor="var(--brand)" stopOpacity={0.5} />
+                <stop offset="95%" stopColor="var(--brand)" stopOpacity={0} />
               </linearGradient>
               <linearGradient id="cons" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.4} />
@@ -86,7 +102,7 @@ export function EnergyChart({ householdId }: { householdId: string }) {
             <Area
               type="monotone"
               dataKey="PV"
-              stroke="var(--accent)"
+              stroke="var(--brand)"
               fill="url(#pv)"
               strokeWidth={2}
             />
