@@ -99,14 +99,16 @@ model MonthlyBill {
 }
 
 model InsightEvent {
-  id              Int    @id @default(autoincrement())
-  householdId     String @map("household_id")
+  id              Int     @id @default(autoincrement())
+  householdId     String  @map("household_id")
   type            String
   severity        String
   period          String
   title           String
-  detail          String @db.Text
-  suggestedAction String @map("suggested_action") @db.Text
+  detail          String  @db.Text
+  suggestedAction String  @map("suggested_action") @db.Text
+  impactEur       Float?  @map("impact_eur")
+  source          String  @default("dataset")
 
   household Household @relation(fields: [householdId], references: [householdId])
 

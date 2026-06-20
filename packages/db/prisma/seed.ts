@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import { config } from "dotenv";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../generated/prisma/client.js";
+import { generateInsights } from "../src/insights/index.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -145,6 +146,7 @@ async function main() {
       title: i.title,
       detail: i.detail,
       suggestedAction: i.suggested_action,
+      source: "dataset",
     })),
   });
   console.log(`Seeded ${insights.length} insight events`);
@@ -174,6 +176,26 @@ async function main() {
       }),
     );
     console.log(`Seeded ${ts.records.length} energy records for ${h.household_id}`);
+  }
+
+  // Generated insights — deterministic detectors over the seeded data.
+  for (const h of households) {
+    const generated = await generateInsights(prisma, h.household_id);
+    if (generated.length === 0) continue;
+    await prisma.insightEvent.createMany({
+      data: generated.map((g) => ({
+        householdId: h.household_id,
+        type: g.type,
+        severity: g.severity,
+        period: g.period,
+        title: g.title,
+        detail: g.detail,
+        suggestedAction: g.suggestedAction,
+        impactEur: g.impactEur,
+        source: "generated",
+      })),
+    });
+    console.log(`Generated ${generated.length} insights for ${h.household_id}`);
   }
 
   console.log("Seed complete.");
