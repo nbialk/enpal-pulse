@@ -3,7 +3,8 @@
 
   "compilerOptions": {
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@enpal/db": ["../../packages/db/src/index.ts"]
     }
   },
 

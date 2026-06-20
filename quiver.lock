@@ -175,7 +175,7 @@
     "skill:vercel-react-best-practices": {
       "type": "skill",
       "sourcePath": "skills/code/vercel-react-best-practices",
-      "digest": "sha256:b6d976eada6cc37e14cce19c47f9b0b181fd4590f4c18195a03e8b99fb178460",
+      "digest": "sha256:5e649eb56683e4a483f732d219646156d115f6283e02c0cf4e85980eecc97445",
       "pin": null,
       "frontmatter": {
         "name": "vercel-react-best-practices",
