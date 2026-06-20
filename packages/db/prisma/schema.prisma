@@ -1,0 +1,137 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Household {
+  householdId    String  @id @map("household_id")
+  name           String
+  city           String
+  residents      Int
+  pvKwp          Float   @map("pv_kwp")
+  batteryKwh     Float   @map("battery_kwh")
+  batteryPowerKw Float   @map("battery_power_kw")
+  heatPump       Boolean @map("heat_pump")
+  evCharger      Boolean @map("ev_charger")
+  tariffId       String  @map("tariff_id")
+
+  tariff         Tariff         @relation(fields: [tariffId], references: [tariffId])
+  contract       Contract?
+  monthlyBills   MonthlyBill[]
+  insightEvents  InsightEvent[]
+  energyRecords  EnergyRecord[]
+
+  @@map("households")
+}
+
+model Tariff {
+  tariffId         String  @id @map("tariff_id")
+  name             String
+  type             String
+  description      String
+  spotAdderEur     Float?  @map("spot_adder_eur_per_kwh")
+  energyRateEur    Float?  @map("energy_rate_eur_per_kwh")
+  baseFeeEur       Float   @map("base_fee_eur_per_month")
+  feedInEur        Float   @map("feed_in_eur_per_kwh")
+  priceSource      String? @map("price_source")
+
+  households Household[]
+
+  @@map("tariffs")
+}
+
+model Contract {
+  householdId       String  @id @map("household_id")
+  customerName      String  @map("customer_name")
+  city              String
+  country           String
+  provider          String
+  tariffId          String  @map("tariff_id")
+  tariffName        String  @map("tariff_name")
+  contractStart     String  @map("contract_start")
+  contractEnd       String  @map("contract_end")
+  minimumTermMonths Int     @map("minimum_term_months")
+  noticePeriodWeeks Int     @map("notice_period_weeks")
+  autoRenewMonths   Int     @map("auto_renew_months")
+  baseFeeEur        Float   @map("base_fee_eur_per_month")
+  pricingModel      String  @map("pricing_model")
+  spotAdderEur      Float?  @map("spot_adder_eur_per_kwh")
+  feedInEur         Float   @map("feed_in_eur_per_kwh")
+  assets            Json
+  contractTermsText String  @map("contract_terms_text") @db.Text
+
+  household Household @relation(fields: [householdId], references: [householdId])
+
+  @@map("contracts")
+}
+
+model DynamicPrice {
+  timestamp           DateTime @id
+  spotPriceEurPerKwh  Float    @map("spot_price_eur_per_kwh")
+
+  @@map("dynamic_prices")
+}
+
+model MonthlyBill {
+  id                 Int    @id @default(autoincrement())
+  householdId        String @map("household_id")
+  month              String
+  consumptionKwh     Float  @map("consumption_kwh")
+  pvProductionKwh    Float  @map("pv_production_kwh")
+  gridImportKwh      Float  @map("grid_import_kwh")
+  gridExportKwh      Float  @map("grid_export_kwh")
+  energyCostEur      Float  @map("energy_cost_eur")
+  baseFeeEur         Float  @map("base_fee_eur")
+  feedInCreditEur    Float  @map("feed_in_credit_eur")
+  totalBillEur       Float  @map("total_bill_eur")
+  selfSufficiencyPct Float  @map("self_sufficiency_pct")
+
+  household Household @relation(fields: [householdId], references: [householdId])
+
+  @@unique([householdId, month])
+  @@map("monthly_bills")
+}
+
+model InsightEvent {
+  id              Int    @id @default(autoincrement())
+  householdId     String @map("household_id")
+  type            String
+  severity        String
+  period          String
+  title           String
+  detail          String @db.Text
+  suggestedAction String @map("suggested_action") @db.Text
+
+  household Household @relation(fields: [householdId], references: [householdId])
+
+  @@index([householdId])
+  @@map("insight_events")
+}
+
+model EnergyRecord {
+  householdId        String   @map("household_id")
+  timestamp          DateTime
+  outdoorTempC       Float    @map("outdoor_temp_c")
+  pvProductionKw     Float    @map("pv_production_kw")
+  houseLoadKw        Float    @map("house_load_kw")
+  heatpumpKw         Float    @map("heatpump_kw")
+  evChargingKw       Float    @map("ev_charging_kw")
+  totalConsumptionKw Float    @map("total_consumption_kw")
+  batteryChargeKw    Float    @map("battery_charge_kw")
+  batteryDischargeKw Float    @map("battery_discharge_kw")
+  batterySocKwh      Float    @map("battery_soc_kwh")
+  batterySocPct      Float    @map("battery_soc_pct")
+  gridImportKw       Float    @map("grid_import_kw")
+  gridExportKw       Float    @map("grid_export_kw")
+  priceEurPerKwh     Float    @map("price_eur_per_kwh")
+
+  household Household @relation(fields: [householdId], references: [householdId])
+
+  @@id([householdId, timestamp])
+  @@index([householdId, timestamp])
+  @@map("energy_records")
+}

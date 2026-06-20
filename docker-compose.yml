@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: enpal-track-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: enpal
+      POSTGRES_PASSWORD: enpal
+      POSTGRES_DB: enpal_track
+    ports:
+      - "5439:5432"
+    volumes:
+      - enpal_track_pgdata:/var/lib/postgresql/data
+
+volumes:
+  enpal_track_pgdata:
