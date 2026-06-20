@@ -3,12 +3,14 @@ packages:
   - packages/*
 
 onlyBuiltDependencies:
-  - "@prisma/client"
   - "@prisma/engines"
   - prisma
   - esbuild
+  - sharp
+  - unrs-resolver
 allowBuilds:
-  '@prisma/client': set this to true or false
-  '@prisma/engines': set this to true or false
-  esbuild: set this to true or false
-  prisma: set this to true or false
+  '@prisma/engines': true
+  esbuild: true
+  prisma: true
+  sharp: true
+  unrs-resolver: true

@@ -11,8 +11,11 @@ enpal-track-dataset/
 
 # Monorepo
 node_modules/
+generated/
 .env
 dist/
 .next/
 .turbo/
+.skybridge/
+.playwright-mcp/
 *.tsbuildinfo
