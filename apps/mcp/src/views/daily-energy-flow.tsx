@@ -153,7 +153,7 @@ export default function DailyEnergyFlow() {
     return (
       <div className={wrap}>
         <h2 className="text-sm font-medium text-muted-foreground">
-          Live energy flow — {output.name} · {output.date}
+          Live energy flow — {output.name} · {output.dateLabel}
         </h2>
         <p className="mt-2 text-sm">No energy records for this day.</p>
       </div>
@@ -193,7 +193,7 @@ export default function DailyEnergyFlow() {
           <p className="mt-0.5 text-2xl font-semibold tabular-nums tracking-tight">
             <span className="font-mono">{output.clock}</span>
             <span className="ml-2 align-middle text-sm font-normal text-muted-foreground">
-              {output.date}
+              {output.dateLabel}
             </span>
           </p>
         </div>

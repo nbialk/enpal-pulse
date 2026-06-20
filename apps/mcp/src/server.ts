@@ -8,6 +8,15 @@ const readOnly = {
   openWorldHint: false,
 } as const;
 
+type MonthlyConsumption = {
+  month: string;
+  monthLabel: string;
+  houseKwh: number;
+  heatpumpKwh: number;
+  evKwh: number;
+  totalKwh: number;
+};
+
 // Selectable household names (shown in the input dropdown). Resolved to ids in
 // the handler so queries stay keyed by householdId.
 const HOUSEHOLD_NAMES = [
@@ -28,6 +37,7 @@ const server = new McpServer(
     inputSchema: {
       household: z
         .enum(HOUSEHOLD_NAMES)
+        .default("Familie Becker")
         .describe("Household to inspect, selected by name."),
       date: z
         .string()
@@ -60,11 +70,25 @@ const server = new McpServer(
 
     const toDay = (d: Date) => d.toISOString().slice(0, 10);
 
-    // Default day: today shifted back one year, clamped into available range.
+    // Current time in German wall-clock time (the server runs in UTC).
+    const berlinNow = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Europe/Berlin",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).formatToParts(new Date());
+    const part = (t: string) => berlinNow.find((p) => p.type === t)!.value;
+    const berlinYear = Number(part("year"));
+    const berlinHour = Number(part("hour"));
+    const berlinMinute = Number(part("minute"));
+
+    // Default day: today (Berlin) shifted back one year, clamped to range.
     let day = date;
     if (!day) {
-      const now = new Date();
-      const lastYear = `${now.getUTCFullYear() - 1}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-${String(now.getUTCDate()).padStart(2, "0")}`;
+      const lastYear = `${berlinYear - 1}-${part("month")}-${part("day")}`;
       const minDay = minTs ? toDay(minTs) : null;
       const maxDay = maxTs ? toDay(maxTs) : null;
       day =
@@ -89,6 +113,12 @@ const server = new McpServer(
         householdId,
         name: household.name,
         date: day,
+        dateLabel: new Intl.DateTimeFormat("de-DE", {
+          timeZone: "UTC",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }).format(new Date(`${day}T00:00:00Z`)),
         clock: "00:00",
         hasHeatPump: household.heatPump,
         hasEv: household.evCharger,
@@ -102,10 +132,9 @@ const server = new McpServer(
       };
     }
 
-    // Fractional 15-min step index for the current wall-clock time of day.
-    const now = new Date();
+    // Fractional 15-min step index for the current German wall-clock time.
     const progress = Math.min(
-      (now.getHours() * 60 + now.getMinutes()) / 15,
+      (berlinHour * 60 + berlinMinute) / 15,
       records.length - 1,
     );
     const i0 = Math.floor(progress);
@@ -164,11 +193,20 @@ const server = new McpServer(
     const totalMin = Math.round(progress * 15);
     const clock = `${String(Math.floor(totalMin / 60) % 24).padStart(2, "0")}:${String(totalMin % 60).padStart(2, "0")}`;
 
+    // Human-readable German date, e.g. "20. Juni 2025".
+    const dateLabel = new Intl.DateTimeFormat("de-DE", {
+      timeZone: "UTC",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }).format(new Date(`${day}T00:00:00Z`));
+
     const round1 = (n: number) => Number(n.toFixed(1));
     const structuredContent = {
       householdId,
       name: household.name,
       date: day,
+      dateLabel,
       clock,
       hasHeatPump: household.heatPump,
       hasEv: household.evCharger,
@@ -205,6 +243,503 @@ const server = new McpServer(
     return {
       structuredContent,
       content: `${household.name} on ${day} at ${clock}: PV ${round1(snapshot.pv)} kW, consumption ${round1(snapshot.consumption)} kW, ${batteryState}, SoC ${Math.round(snapshot.soc)}%, price ${snapshot.price.toFixed(3)} EUR/kWh (${priceContext}).`,
+    };
+  },
+).registerTool(
+  {
+    name: "explain-bill",
+    description:
+      "Explain a household's monthly bill: decomposes the euro difference between two months into drivers (energy cost, feed-in credit, base fee) and, when comparing several months, renders a stacked bar chart of consumption by area (house load, heat pump, EV) per month. Use for 'Why was my bill higher this month?' or 'Compare the last 3 months'.",
+    inputSchema: {
+      household: z
+        .enum(HOUSEHOLD_NAMES)
+        .default("Familie Becker")
+        .describe("Household to inspect, selected by name."),
+      month: z
+        .string()
+        .regex(/^\d{4}-\d{2}$/)
+        .optional()
+        .describe(
+          "Latest month to explain as YYYY-MM. Defaults to the most recent available month.",
+        ),
+      compareMonth: z
+        .string()
+        .regex(/^\d{4}-\d{2}$/)
+        .optional()
+        .describe(
+          "Reference month as YYYY-MM for the driver breakdown. Defaults to the previous month.",
+        ),
+      months: z
+        .number()
+        .int()
+        .min(1)
+        .max(12)
+        .default(3)
+        .describe(
+          "How many of the most recent months to chart (e.g. 3 = last 3 months). 1 keeps the before/after card; >=2 shows a stacked monthly consumption chart.",
+        ),
+    },
+    annotations: { title: "Explain bill", ...readOnly },
+    view: { component: "explain-bill", description: "Bill driver breakdown" },
+  },
+  async ({ household: householdName, month, compareMonth, months }) => {
+    const household = await prisma.household.findFirstOrThrow({
+      where: { name: householdName },
+    });
+    const householdId = household.householdId;
+
+    const bills = await prisma.monthlyBill.findMany({
+      where: { householdId },
+      orderBy: { month: "asc" },
+    });
+
+    const monthLabelDe = (ym: string) =>
+      new Intl.DateTimeFormat("de-DE", {
+        timeZone: "UTC",
+        month: "long",
+        year: "numeric",
+      }).format(new Date(`${ym}-01T00:00:00Z`));
+    const eur = (n: number) =>
+      new Intl.NumberFormat("de-DE", {
+        style: "currency",
+        currency: "EUR",
+        maximumFractionDigits: 0,
+      }).format(n);
+
+    if (bills.length < 2) {
+      const empty = {
+        householdId,
+        name: household.name,
+        month: null,
+        monthLabel: null,
+        compareMonth: null,
+        compareLabel: null,
+        totalEur: 0,
+        compareTotalEur: 0,
+        deltaEur: 0,
+        mainReason: null as string | null,
+        drivers: [] as never[],
+        monthlyConsumption: [] as MonthlyConsumption[],
+        context: null,
+      };
+      return {
+        structuredContent: empty,
+        content: `Not enough monthly bills for ${household.name} to compare.`,
+      };
+    }
+
+    // Target month: requested, else the most recent available month.
+    const byMonth = new Map(bills.map((b) => [b.month, b]));
+    const target = (month && byMonth.get(month)) || bills[bills.length - 1];
+
+    // Reference month: requested, else previous month, else yearly median.
+    const idx = bills.findIndex((b) => b.month === target.month);
+    let reference =
+      (compareMonth && byMonth.get(compareMonth)) ||
+      (idx > 0 ? bills[idx - 1] : undefined);
+    if (!reference) {
+      const sorted = [...bills].sort((a, b) => a.totalBillEur - b.totalBillEur);
+      reference = sorted[Math.floor(sorted.length / 2)];
+      // Avoid comparing the month with itself.
+      if (reference.month === target.month) {
+        reference = sorted.find((b) => b.month !== target.month) ?? reference;
+      }
+    }
+
+    const deltaEur = target.totalBillEur - reference.totalBillEur;
+
+    // Driver decomposition. totalBill = energyCost + baseFee - feedInCredit.
+    // Split the energy-cost delta into a grid-import component (the dominant
+    // lever) and a residual that also absorbs rounding so the waterfall is exact.
+    const energyDelta = target.energyCostEur - reference.energyCostEur;
+    const feedInDelta = -(target.feedInCreditEur - reference.feedInCreditEur);
+    const baseFeeDelta = target.baseFeeEur - reference.baseFeeEur;
+
+    const importDelta = target.gridImportKwh - reference.gridImportKwh;
+    const pvDelta = target.pvProductionKwh - reference.pvProductionKwh;
+    const consumptionDelta = target.consumptionKwh - reference.consumptionKwh;
+
+    const round = (n: number) => Math.round(n);
+    const kwh = (n: number) =>
+      `${n >= 0 ? "+" : "−"}${Math.abs(Math.round(n))} kWh`;
+
+    type Driver = {
+      key: string;
+      label: string;
+      amountEur: number;
+      direction: "increase" | "decrease";
+      detail: string;
+    };
+    // Keep the energy-cost change as one understandable driver ("Stromkosten")
+    // instead of splitting it into a grid-import part plus a confusing residual.
+    // Surface the causal chain in the detail: consumption drives grid import.
+    const raw: Driver[] = [
+      {
+        key: "energy_cost",
+        label: "Stromkosten",
+        amountEur: energyDelta,
+        direction: energyDelta >= 0 ? "increase" : "decrease",
+        detail: `Verbrauch ${kwh(consumptionDelta)} → Netzbezug ${kwh(importDelta)}`,
+      },
+      {
+        key: "feed_in",
+        label: "Einspeise-Gutschrift",
+        amountEur: feedInDelta,
+        direction: feedInDelta >= 0 ? "increase" : "decrease",
+        detail: `PV ${kwh(pvDelta)} → ${eur(Math.abs(feedInDelta))} ${feedInDelta >= 0 ? "weniger" : "mehr"} Gutschrift`,
+      },
+      {
+        key: "base_fee",
+        label: "Grundgebühr",
+        amountEur: baseFeeDelta,
+        direction: baseFeeDelta >= 0 ? "increase" : "decrease",
+        detail:
+          baseFeeDelta === 0 ? "unverändert" : `${eur(baseFeeDelta)} Differenz`,
+      },
+    ];
+    // Drop negligible drivers, sort by impact magnitude.
+    const significant = raw
+      .filter((d) => Math.abs(d.amountEur) >= 0.5)
+      .map((d) => ({ ...d, amountEur: round(d.amountEur) }));
+
+    // Fold any rounding gap into the largest driver so the bars sum to deltaEur.
+    const sumSignificant = significant.reduce((s, d) => s + d.amountEur, 0);
+    const gap = round(deltaEur) - sumSignificant;
+    if (gap !== 0 && significant.length > 0) {
+      const top = significant.reduce((a, b) =>
+        Math.abs(b.amountEur) > Math.abs(a.amountEur) ? b : a,
+      );
+      top.amountEur += gap;
+    }
+    const drivers = significant.sort(
+      (a, b) => Math.abs(b.amountEur) - Math.abs(a.amountEur),
+    );
+
+    const ctx = (b: (typeof bills)[number]) => ({
+      consumptionKwh: round(b.consumptionKwh),
+      pvProductionKwh: round(b.pvProductionKwh),
+      gridImportKwh: round(b.gridImportKwh),
+      gridExportKwh: round(b.gridExportKwh),
+      selfSufficiencyPct: round(b.selfSufficiencyPct),
+    });
+
+    // Concise plain-language main reason. Consumption is the dominant lever:
+    // it drives grid import and therefore most of the bill change.
+    const lower = deltaEur < 0;
+    const consumptionPct =
+      reference.consumptionKwh > 0
+        ? Math.abs(consumptionDelta / reference.consumptionKwh) * 100
+        : 0;
+    const mainReason =
+      Math.abs(consumptionDelta) >= 10
+        ? `${Math.abs(round(consumptionDelta))} kWh ${consumptionDelta < 0 ? "weniger" : "mehr"} Verbrauch (${round(consumptionPct)}%) — ${lower ? "weniger Strom aus dem Netz" : "mehr Strom aus dem Netz"}.`
+        : drivers[0]
+          ? `${drivers[0].label}: ${eur(Math.abs(drivers[0].amountEur))} ${drivers[0].amountEur < 0 ? "gespart" : "mehr"}.`
+          : "Keine wesentliche Veränderung.";
+
+    // Stacked monthly consumption by area for the last `months` months ending at
+    // the target month. Aggregated in the DB (kW * 0.25 -> kWh per 15-min step).
+    const targetIdx = bills.findIndex((b) => b.month === target.month);
+    const windowBills = bills.slice(
+      Math.max(0, targetIdx - months + 1),
+      targetIdx + 1,
+    );
+    const rangeStart = new Date(`${windowBills[0].month}-01T00:00:00Z`);
+    const lastMonth = windowBills[windowBills.length - 1].month;
+    const rangeEnd = new Date(`${lastMonth}-01T00:00:00Z`);
+    rangeEnd.setUTCMonth(rangeEnd.getUTCMonth() + 1);
+
+    type AreaRow = {
+      month: Date;
+      house_kwh: number;
+      heatpump_kwh: number;
+      ev_kwh: number;
+    };
+    const areaRows = await prisma.$queryRaw<AreaRow[]>`
+      SELECT
+        date_trunc('month', timestamp) AS month,
+        SUM(house_load_kw) * 0.25 AS house_kwh,
+        SUM(heatpump_kw) * 0.25 AS heatpump_kwh,
+        SUM(ev_charging_kw) * 0.25 AS ev_kwh
+      FROM energy_records
+      WHERE household_id = ${householdId}
+        AND timestamp >= ${rangeStart}
+        AND timestamp < ${rangeEnd}
+      GROUP BY month
+      ORDER BY month ASC
+    `;
+    const monthlyConsumption: MonthlyConsumption[] = areaRows.map((r) => {
+      const ym = r.month.toISOString().slice(0, 7);
+      const houseKwh = round(Number(r.house_kwh));
+      const heatpumpKwh = round(Number(r.heatpump_kwh));
+      const evKwh = round(Number(r.ev_kwh));
+      return {
+        month: ym,
+        monthLabel: new Intl.DateTimeFormat("de-DE", {
+          timeZone: "UTC",
+          month: "short",
+          year: "2-digit",
+        }).format(r.month),
+        houseKwh,
+        heatpumpKwh,
+        evKwh,
+        totalKwh: houseKwh + heatpumpKwh + evKwh,
+      };
+    });
+
+    const structuredContent = {
+      householdId,
+      name: household.name,
+      month: target.month,
+      monthLabel: monthLabelDe(target.month),
+      compareMonth: reference.month,
+      compareLabel: monthLabelDe(reference.month),
+      totalEur: round(target.totalBillEur),
+      compareTotalEur: round(reference.totalBillEur),
+      deltaEur: round(deltaEur),
+      mainReason,
+      drivers,
+      monthlyConsumption,
+      context: { month: ctx(target), compare: ctx(reference) },
+    };
+
+    const topDrivers = drivers
+      .slice(0, 3)
+      .map((d) => `${d.label} ${d.amountEur >= 0 ? "+" : ""}${eur(d.amountEur)}`)
+      .join(", ");
+    const dir = deltaEur >= 0 ? "higher" : "lower";
+    const chartNote =
+      monthlyConsumption.length >= 2
+        ? ` Consumption by area charted for ${monthlyConsumption.length} months (${monthlyConsumption.map((m) => `${m.monthLabel}: ${m.totalKwh} kWh`).join(", ")}).`
+        : "";
+    return {
+      structuredContent,
+      content: `${household.name}: ${monthLabelDe(target.month)} cost ${eur(target.totalBillEur)}, ${eur(Math.abs(deltaEur))} ${dir} than ${monthLabelDe(reference.month)}. Main drivers: ${topDrivers || "no significant change"}.${chartNote}`,
+    };
+  },
+).registerTool(
+  {
+    name: "best-time-to-run",
+    description:
+      "Recommends the best time window today or tomorrow to run a flexible load (EV charging, washing machine, dishwasher, heat pump) for one household. Optimizes for lowest effective cost on dynamic tariffs and for maximum PV self-consumption on fixed tariffs. Use for questions like 'when should I charge my car today?' or 'when should I run the washing machine tomorrow?'. Renders a day chart with the recommended window highlighted.",
+    inputSchema: {
+      household: z
+        .enum(HOUSEHOLD_NAMES)
+        .default("Familie Becker")
+        .describe("Household to plan for, selected by name."),
+      appliance: z
+        .enum(["ev", "washing-machine", "dishwasher", "heat-pump"])
+        .default("ev")
+        .describe("The flexible load to schedule."),
+      when: z
+        .enum(["today", "tomorrow"])
+        .default("today")
+        .describe(
+          "Plan for today or tomorrow. Mapped onto the 2025 dataset (same date one year ago, +1 day for tomorrow).",
+        ),
+      date: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional()
+        .describe(
+          "Explicit day as YYYY-MM-DD. Overrides 'when'. Defaults to the mapped today/tomorrow.",
+        ),
+      durationHours: z
+        .number()
+        .min(0.5)
+        .max(12)
+        .optional()
+        .describe("Run duration in hours. Defaults to a per-appliance estimate."),
+    },
+    annotations: { title: "Best time to run", ...readOnly },
+    view: {
+      component: "best-time-to-run",
+      description: "Recommended time window for a flexible load",
+    },
+  },
+  async ({ household: householdName, appliance, when, date, durationHours }) => {
+    const household = await prisma.household.findFirstOrThrow({
+      where: { name: householdName },
+    });
+    const householdId = household.householdId;
+    const tariffType = household.tariffId === "fixed" ? "fixed" : "dynamic";
+
+    const APPLIANCE_LABELS = {
+      ev: "EV charging",
+      "washing-machine": "Washing machine",
+      dishwasher: "Dishwasher",
+      "heat-pump": "Heat pump",
+    } as const;
+    const DEFAULT_DURATION = {
+      ev: 3,
+      "washing-machine": 2,
+      dishwasher: 2,
+      "heat-pump": 1,
+    } as const;
+    const duration = durationHours ?? DEFAULT_DURATION[appliance];
+
+    // Available data range for this household.
+    const range = await prisma.energyRecord.aggregate({
+      where: { householdId },
+      _min: { timestamp: true },
+      _max: { timestamp: true },
+    });
+    const minTs = range._min.timestamp;
+    const maxTs = range._max.timestamp;
+    const toDay = (d: Date) => d.toISOString().slice(0, 10);
+
+    // Current German wall-clock date.
+    const berlinParts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Europe/Berlin",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(new Date());
+    const bPart = (t: string) => berlinParts.find((p) => p.type === t)!.value;
+    const berlinYear = Number(bPart("year"));
+
+    // Resolve the target day, mapped onto the 2025 dataset.
+    let day = date;
+    if (!day) {
+      const base = new Date(
+        `${berlinYear - 1}-${bPart("month")}-${bPart("day")}T00:00:00Z`,
+      );
+      if (when === "tomorrow") base.setUTCDate(base.getUTCDate() + 1);
+      const mapped = toDay(base);
+      const minDay = minTs ? toDay(minTs) : null;
+      const maxDay = maxTs ? toDay(maxTs) : null;
+      day =
+        minDay && mapped < minDay
+          ? minDay
+          : maxDay && mapped > maxDay
+            ? maxDay
+            : mapped;
+    }
+
+    const from = new Date(`${day}T00:00:00Z`);
+    const to = new Date(from);
+    to.setUTCDate(to.getUTCDate() + 1);
+
+    const records = await prisma.energyRecord.findMany({
+      where: { householdId, timestamp: { gte: from, lt: to } },
+      orderBy: { timestamp: "asc" },
+    });
+
+    const dateLabel = new Intl.DateTimeFormat("de-DE", {
+      timeZone: "UTC",
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    }).format(from);
+
+    if (records.length === 0) {
+      const empty = {
+        householdId,
+        name: household.name,
+        appliance,
+        applianceLabel: APPLIANCE_LABELS[appliance],
+        when,
+        date: day,
+        dateLabel,
+        tariffType,
+        durationHours: duration,
+        window: null,
+        effectiveCostEur: null,
+        savingsEur: null,
+        pvSharePct: null,
+        reason: "Für diesen Tag liegen keine Energiedaten vor.",
+        slots: [] as { clock: string; price: number; pvSurplus: number; inWindow: boolean }[],
+      };
+      return {
+        structuredContent: empty,
+        content: `No energy records for ${household.name} on ${day}.`,
+      };
+    }
+
+    const STEP_HOURS = 0.25;
+    // Per-15-min-slot price and PV surplus (kW).
+    const slots = records.map((r) => ({
+      price: r.priceEurPerKwh,
+      pvSurplus: Math.max(r.pvProductionKw - r.totalConsumptionKw, 0),
+    }));
+    const windowSlots = Math.max(1, Math.round(duration / STEP_HOURS));
+
+    // Assume the appliance draws a flat load over its run. Estimate a plausible
+    // per-appliance power so cost/savings are concrete.
+    const APPLIANCE_KW = {
+      ev: 7.4,
+      "washing-machine": 2,
+      dishwasher: 1.8,
+      "heat-pump": 2.5,
+    } as const;
+    const loadKw = APPLIANCE_KW[appliance];
+    const slotEnergyKwh = loadKw * STEP_HOURS;
+
+    // Score each candidate start slot.
+    // dynamic: minimize effective cost (grid price for the share not covered by PV surplus).
+    // fixed: maximize PV surplus covered (price is constant, so self-consumption wins).
+    let best = { start: 0, score: Infinity, cost: 0, pvCoveredKwh: 0 };
+    let worstCost = -Infinity;
+    for (let start = 0; start + windowSlots <= slots.length; start++) {
+      let cost = 0;
+      let pvCoveredKwh = 0;
+      for (let i = start; i < start + windowSlots; i++) {
+        const pvCoverKw = Math.min(loadKw, slots[i].pvSurplus);
+        const gridKw = loadKw - pvCoverKw;
+        cost += gridKw * STEP_HOURS * slots[i].price;
+        pvCoveredKwh += pvCoverKw * STEP_HOURS;
+      }
+      worstCost = Math.max(worstCost, cost);
+      const score = tariffType === "fixed" ? -pvCoveredKwh : cost;
+      if (score < best.score) {
+        best = { start, score, cost, pvCoveredKwh };
+      }
+    }
+
+    const totalEnergyKwh = slotEnergyKwh * windowSlots;
+    const pvSharePct =
+      totalEnergyKwh > 0 ? (best.pvCoveredKwh / totalEnergyKwh) * 100 : 0;
+    const savingsEur = Math.max(worstCost - best.cost, 0);
+
+    const slotClock = (i: number) => {
+      const min = i * 15;
+      return `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
+    };
+    const windowStart = slotClock(best.start);
+    const windowEnd = slotClock(best.start + windowSlots);
+
+    const reason =
+      tariffType === "fixed"
+        ? `Fester Tarif: In diesem Fenster ist der Solarüberschuss am höchsten (${Math.round(pvSharePct)}% des Bedarfs aus eigener PV). So nutzt du am meisten Eigenstrom.`
+        : `Dynamischer Tarif: günstigstes ${duration}-Stunden-Fenster${pvSharePct > 5 ? ` mit zusätzlich ${Math.round(pvSharePct)}% PV-Eigenstrom` : ""}. Ersparnis ggü. dem teuersten Fenster: ca. ${savingsEur.toFixed(2)} €.`;
+
+    const round1 = (n: number) => Number(n.toFixed(1));
+    const structuredContent = {
+      householdId,
+      name: household.name,
+      appliance,
+      applianceLabel: APPLIANCE_LABELS[appliance],
+      when,
+      date: day,
+      dateLabel,
+      tariffType,
+      durationHours: duration,
+      window: { start: windowStart, end: windowEnd, durationHours: duration },
+      effectiveCostEur: Number(best.cost.toFixed(2)),
+      savingsEur: Number(savingsEur.toFixed(2)),
+      pvSharePct: Math.round(pvSharePct),
+      reason,
+      slots: slots.map((s, i) => ({
+        clock: slotClock(i),
+        price: Number(s.price.toFixed(4)),
+        pvSurplus: round1(s.pvSurplus),
+        inWindow: i >= best.start && i < best.start + windowSlots,
+      })),
+    };
+
+    return {
+      structuredContent,
+      content: `Best time to run ${APPLIANCE_LABELS[appliance]} for ${household.name} on ${day} (${tariffType} tariff): ${windowStart}–${windowEnd}. Effective cost ~${best.cost.toFixed(2)} €, PV share ${Math.round(pvSharePct)}%, savings vs. worst window ~${savingsEur.toFixed(2)} €.`,
     };
   },
 );

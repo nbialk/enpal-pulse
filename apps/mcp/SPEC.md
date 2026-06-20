@@ -29,6 +29,8 @@ dynamic spot prices, and pre-detected insight events.
 | `insights` | view | Anomalies & nudges feed. |
 | `explain-contract` | tool | Returns contract terms text (NLP/grounding). |
 | `cheapest-window` | tool | Cheapest dynamic-price hours in a date range. |
+| `best-time-to-run` | view | Best window today/tomorrow to run a flexible load (EV, washer, dishwasher, heat pump), optimizing cost + PV self-consumption. |
+| `explain-bill` | view | Bill driver breakdown (month vs. month) + stacked consumption-by-area chart for the last N months. |
 
 All tools are `readOnlyHint: true`, `openWorldHint: false`,
 `destructiveHint: false`.

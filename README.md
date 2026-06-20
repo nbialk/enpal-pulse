@@ -39,6 +39,7 @@ time to charge the car?"_, or _"explain my contract terms"_.
 | **insights** | view | Anomalies & nudges feed. |
 | **explain-contract** | tool | Contract terms in plain language. |
 | **cheapest-window** | tool | Cheapest dynamic-price hours in a date range. |
+| **best-time-to-run** | view | Best window today/tomorrow to run a flexible load (EV, washer, dishwasher, heat pump). |
 
 All tools are read-only (`readOnlyHint: true`, `openWorldHint: false`).
 
