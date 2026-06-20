@@ -1,6 +1,7 @@
 import { McpServer } from "skybridge/server";
 import { z } from "zod";
 import { prisma } from "./db.js";
+import { generateInsights } from "@enpal/db";
 import type {
   Household,
   MonthlyBill,
@@ -286,6 +287,38 @@ const server = new McpServer(
           .map(
             (c) =>
               `${c.timestamp}: ${c.retailEurPerKwh} EUR/kWh retail (spot ${c.spotEurPerKwh})`,
+          )
+          .join("\n"),
+      };
+    },
+  )
+  .registerTool(
+    {
+      name: "generated-insights",
+      description:
+        "Deterministically generated, personalized insights for one household: tariff counterfactual (dynamic vs. fixed), load-shift / EV nudges with euro impact, bill spikes and standby load. Computed from the household's own data — use these as grounded numbers when advising the user on saving money.",
+      inputSchema: { householdId: z.string().describe("Household id, e.g. HH-1001") },
+      annotations: { title: "Generated insights", ...readOnly },
+    },
+    async ({ householdId }) => {
+      const insights = await generateInsights(prisma, householdId);
+      return {
+        structuredContent: {
+          householdId,
+          insights: insights.map((i) => ({
+            type: i.type,
+            severity: i.severity,
+            period: i.period,
+            title: i.title,
+            detail: i.detail,
+            suggestedAction: i.suggestedAction,
+            impactEur: Number(i.impactEur.toFixed(2)),
+          })),
+        },
+        content: insights
+          .map(
+            (i) =>
+              `[${i.severity}] ${i.title}${i.impactEur > 0 ? ` (~${i.impactEur.toFixed(0)} EUR/yr)` : ""} — ${i.suggestedAction}`,
           )
           .join("\n"),
       };
