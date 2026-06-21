@@ -3,7 +3,7 @@
 <p align="center">
   <a href="https://nextjs.org"><img src="https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=next.js&logoColor=white" alt="Next.js" /></a>
   <a href="https://docs.skybridge.tech"><img src="https://img.shields.io/badge/Skybridge-1.1.1-2563eb?style=flat-square&logo=react&logoColor=white" alt="Skybridge" /></a>
-  <a href="https://enpal.niklas.sh"><img src="https://img.shields.io/badge/Demo-enpal.niklas.sh-7c3aed?style=flat-square" alt="Live demo" /></a>
+  <a href="https://pulse.niklas.sh"><img src="https://img.shields.io/badge/Demo-pulse.niklas.sh-7c3aed?style=flat-square" alt="Live demo" /></a>
 </p>
 
 Turns a household's messy energy reality — solar production, battery state,
@@ -20,8 +20,8 @@ It ships as two surfaces over the same data:
 
 ## Try it
 
-- **Dashboard:** [enpal.niklas.sh](https://enpal.niklas.sh)
-- **MCP server URL:** `https://mcp.enpal.niklas.sh/mcp`
+- **Dashboard:** [pulse.niklas.sh](https://pulse.niklas.sh)
+- **MCP server URL:** `https://mcp.pulse.niklas.sh/mcp`
 
 Add the MCP server URL to any compatible client (ChatGPT, Claude, etc.), then
 ask things like _"why was my bill higher in January?"_, _"when should I charge

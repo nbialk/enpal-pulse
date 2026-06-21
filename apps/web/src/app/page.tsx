@@ -7,7 +7,7 @@ import { CopyButton } from "@/components/copy-button";
 import { GitHubStars } from "@/components/github-stars";
 import { ThemeToggle } from "@/components/theme-toggle";
 
-const MCP_URL = "https://mcp.enpal.niklas.sh/mcp";
+const MCP_URL = "https://mcp.pulse.niklas.sh/mcp";
 const GITHUB_REPO = "nbialk/enpal-pulse";
 
 const prompts = [
