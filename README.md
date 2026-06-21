@@ -28,13 +28,13 @@ It ships as two surfaces over the same data:
 The unified energy view on the dashboard:
 
 <p align="center">
-  <img src="apps/web/public/demo-energy-flow.gif" alt="Daily energy flow on the dashboard" />
+  <img src="apps/web/public/demo-energy-flow.gif" alt="Daily energy flow on the dashboard" width="700" />
 </p>
 
 The same household data, reasoned over conversationally in Claude:
 
 <p align="center">
-  <img src="apps/web/public/demo-claude.gif" alt="Asking Claude about household energy via the MCP server" />
+  <img src="apps/web/public/demo-claude.gif" alt="Asking Claude about household energy via the MCP server" width="420" />
 </p>
 
 ## Try it
