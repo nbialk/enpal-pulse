@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://www.loom.com/share/REPLACE_WITH_LOOM_ID"><strong>▶ Watch the demo video</strong></a>
+  <a href="https://www.loom.com/share/61196e8b7f1142ec9f03f0a67bd144f2"><strong>▶ Watch the demo video</strong></a>
 </p>
 
 Enpal Pulse brings a household's solar production, battery state, heat pump and
