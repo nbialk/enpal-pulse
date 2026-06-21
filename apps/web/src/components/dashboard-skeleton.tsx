@@ -78,24 +78,26 @@ function FlowSkeleton() {
         <div className="absolute right-[38%] top-[56%] h-[24%] w-px bg-border" />
 
         {/* Solar (top) */}
-        <Node className="left-1/2 top-[17%] size-[15%]" />
+        <Node className="left-1/2 top-[17%]" />
         {/* Grid · House · Battery row */}
-        <Node className="left-[14%] top-[56%] size-[15%]" />
-        <Node className="left-1/2 top-[56%] size-[15%]" />
-        <Node className="right-[14%] top-[56%] size-[15%] left-auto translate-x-1/2" />
+        <Node className="left-[14%] top-[56%]" />
+        <Node className="left-1/2 top-[56%]" />
+        <Node className="left-[86%] top-[56%]" />
         {/* Heat pump · EV */}
-        <Node className="left-[38%] top-[81%] size-[11%]" />
-        <Node className="right-[38%] top-[81%] size-[11%] left-auto translate-x-1/2" />
+        <Node className="left-[38%] top-[81%]" small />
+        <Node className="left-[62%] top-[81%]" small />
       </div>
     </div>
   );
 }
 
 /** A single circular node placeholder, centered on its anchor point. */
-function Node({ className }: { className?: string }) {
+function Node({ className, small }: { className?: string; small?: boolean }) {
   return (
     <Skeleton
-      className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full ${className}`}
+      className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full ${
+        small ? "size-9" : "size-12"
+      } ${className}`}
     />
   );
 }
