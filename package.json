@@ -1,7 +1,7 @@
 {
   "name": "enpal-pulse",
   "version": "0.0.0",
-  "private": true,
+  "license": "MIT",
   "packageManager": "pnpm@11.7.0",
   "scripts": {
     "dev": "turbo run dev",
