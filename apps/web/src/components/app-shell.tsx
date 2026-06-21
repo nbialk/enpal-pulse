@@ -6,8 +6,10 @@ import { TopNav } from "@/components/top-nav";
 
 export function AppShell({
   children,
+  fallback,
 }: {
   children: (activeId: string) => React.ReactNode;
+  fallback?: React.ReactNode;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -36,11 +38,9 @@ export function AppShell({
         isLoading={households.isLoading}
       />
       <main className="mx-auto w-full max-w-6xl space-y-6 px-6 py-8">
-        {households.isLoading ? (
-          <p className="text-sm text-muted-foreground">Loading households…</p>
-        ) : (
-          activeId && children(activeId)
-        )}
+        {households.isLoading
+          ? fallback
+          : activeId && children(activeId)}
       </main>
     </>
   );

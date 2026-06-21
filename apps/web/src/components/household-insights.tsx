@@ -11,6 +11,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { LiveSnapshot } from "@/components/charts/energy-flow";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const num = (n: number, digits = 0) =>
   n.toLocaleString("en-US", {
@@ -147,9 +148,13 @@ export function HouseholdInsights({ live }: { live: LiveSnapshot | null }) {
             <BatteryRing pct={live.batterySocPct} />
           </div>
         ) : (
-          <p className="mt-3 text-sm text-muted-foreground">
-            Loading live data.
-          </p>
+          <div className="mt-3 flex items-center justify-between gap-4">
+            <div className="space-y-2">
+              <Skeleton className="h-7 w-24" />
+              <Skeleton className="h-5 w-16 rounded-full" />
+            </div>
+            <Skeleton className="size-12 rounded-full" />
+          </div>
         )}
       </div>
 
@@ -205,9 +210,21 @@ export function HouseholdInsights({ live }: { live: LiveSnapshot | null }) {
             </div>
           </div>
         ) : (
-          <p className="mt-3 text-sm text-muted-foreground">
-            Loading data.
-          </p>
+          <div className="mt-3 flex flex-1 flex-col justify-between gap-3">
+            <div className="grid grid-cols-2 gap-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="space-y-1.5 rounded-lg border border-border p-2.5"
+                >
+                  <Skeleton className="size-3.5 rounded-sm" />
+                  <Skeleton className="h-4 w-12" />
+                  <Skeleton className="h-2.5 w-16" />
+                </div>
+              ))}
+            </div>
+            <Skeleton className="h-12 w-full rounded-lg" />
+          </div>
         )}
       </div>
     </div>

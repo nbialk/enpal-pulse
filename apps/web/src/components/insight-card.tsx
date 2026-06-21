@@ -15,6 +15,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const TYPE_ICON: Record<string, LucideIcon> = {
   tariff_mismatch: PiggyBank,
@@ -38,7 +39,7 @@ export function InsightCard({ householdId }: { householdId: string }) {
   }, [householdId]);
 
   if (feed.isLoading) {
-    return <div className="h-28 animate-pulse rounded-xl bg-muted" />;
+    return <Skeleton className="h-28 w-full rounded-xl" />;
   }
   if (items.length === 0) return null;
 

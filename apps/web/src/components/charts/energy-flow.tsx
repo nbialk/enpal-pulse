@@ -25,6 +25,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Step = {
   time: string;
@@ -457,7 +458,7 @@ export function EnergyFlow({ timeline }: { timeline: EnergyTimeline }) {
   }, [hasHeatPump, hasEv]);
 
   if (!activeDay || !intraday.data) {
-    return <div className="h-[360px] animate-pulse rounded-xl bg-muted" />;
+    return <Skeleton className="h-[360px] w-full rounded-xl" />;
   }
 
   const phase = sun ? dayPhase(progress, sun.riseIdx, sun.setIdx) : 0;
@@ -732,7 +733,7 @@ export function EnergyTimelineBar({ timeline }: { timeline: EnergyTimeline }) {
   const clock = formatMinutes(progress);
 
   if (steps.length === 0) {
-    return <div className="h-8 animate-pulse rounded-lg bg-muted" />;
+    return <Skeleton className="h-8 w-full rounded-lg" />;
   }
 
   return (

@@ -134,6 +134,34 @@ body {
   }
 }
 
+/* Skeleton loaders: a soft highlight sweeps across the muted base. */
+@keyframes skeleton-shimmer {
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in oklch, var(--foreground) 7%, transparent) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  background-position: 200% 0;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+/* Without motion, drop the sweep and use a gentle pulse instead. */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer {
+    background-image: none;
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
