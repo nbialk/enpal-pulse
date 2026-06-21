@@ -54,22 +54,22 @@ To connect the MCP server:
 
 ## How it works
 
-One Postgres database holds the full household dataset. Prisma exposes it to two
-surfaces that never duplicate logic: a Next.js dashboard for visual exploration,
-and a Skybridge MCP server that lets an LLM reason over the same data.
+One Postgres database holds the full household dataset. Both surfaces live in a
+single **pnpm + Turborepo monorepo** and share one `packages/db` package (Prisma
+schema + client), so the Next.js dashboard and the Skybridge MCP server never
+duplicate data logic.
 
 ```mermaid
 flowchart LR
-  subgraph Data
-    PG[(Neon Postgres)]
+  User((Homeowner)) --> Dash[Next.js dashboard]
+  User --> LLM[ChatGPT / Claude]
+  subgraph Monorepo["Monorepo · pnpm + Turborepo"]
+    Dash --> TRPC[tRPC routers]
+    LLM --> MCP[MCP tools]
+    TRPC --> DB["packages/db · Prisma"]
+    MCP --> DB
   end
-  PG --> Prisma[Prisma client]
-  Prisma --> TRPC[tRPC routers]
-  Prisma --> MCP[MCP tools]
-  TRPC --> Dash[Next.js dashboard]
-  MCP --> LLM[ChatGPT / Claude]
-  Dash --> User((Homeowner))
-  LLM --> User
+  DB --> PG[(Neon Postgres)]
 ```
 
 ### The AI layer
