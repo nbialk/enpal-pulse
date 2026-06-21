@@ -162,6 +162,7 @@ const server = new McpServer(
     // Energy totals from midnight up to the cursor (kWh = kW * 0.25).
     const full = Math.floor(progress);
     const acc = { pv: 0, consumption: 0, gridImport: 0, gridExport: 0 };
+    let savedEur = 0;
     for (let i = 0; i <= full && i < records.length; i++) {
       const weight = i < full ? 1 : frac;
       if (weight === 0) break;
@@ -170,6 +171,10 @@ const server = new McpServer(
       acc.consumption += rec.totalConsumptionKw * weight;
       acc.gridImport += rec.gridImportKw * weight;
       acc.gridExport += rec.gridExportKw * weight;
+      // House demand met by solar/battery instead of the grid, valued at the
+      // spot price of that interval -> euros not spent on imports.
+      const selfSupplied = Math.max(rec.totalConsumptionKw - rec.gridImportKw, 0);
+      savedEur += selfSupplied * 0.25 * rec.priceEurPerKwh * weight;
     }
     const pvKwh = acc.pv * 0.25;
     const gridExportKwh = acc.gridExport * 0.25;
@@ -179,6 +184,7 @@ const server = new McpServer(
       gridImport: acc.gridImport * 0.25,
       gridExport: gridExportKwh,
       selfConsumption: pvKwh > 0 ? ((pvKwh - gridExportKwh) / pvKwh) * 100 : 0,
+      savedEur,
     };
 
     // Classify the cursor price against the day's distribution.
@@ -225,11 +231,12 @@ const server = new McpServer(
         price: Number(snapshot.price.toFixed(4)),
       },
       balance: {
-        pv: Math.round(balance.pv),
-        consumption: Math.round(balance.consumption),
-        gridImport: Math.round(balance.gridImport),
-        gridExport: Math.round(balance.gridExport),
+        pv: round1(balance.pv),
+        consumption: round1(balance.consumption),
+        gridImport: round1(balance.gridImport),
+        gridExport: round1(balance.gridExport),
         selfConsumption: Math.round(balance.selfConsumption),
+        savedEur: Number(balance.savedEur.toFixed(2)),
       },
       priceContext,
     };

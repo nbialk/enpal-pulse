@@ -5,6 +5,7 @@ import {
   BatteryCharging,
   Car,
   Home,
+  PiggyBank,
   Sun,
   Thermometer,
   Zap,
@@ -176,16 +177,20 @@ export default function DailyEnergyFlow() {
     ev: s.ev,
   };
 
-  const priceLabel =
-    output.priceContext === "cheap"
-      ? "Cheap power"
-      : output.priceContext === "pricey"
-        ? "Pricey power"
-        : "Typical price";
+  const supply =
+    s.batteryDischarge > 0.05
+      ? { label: "running on battery", color: "text-green-600 bg-green-500/10" }
+      : s.gridExport > 0.05
+        ? { label: "exporting to grid", color: "text-emerald-600 bg-emerald-500/10" }
+        : s.gridImport > 0.05
+          ? { label: "drawing from grid", color: "text-red-500 bg-red-500/10" }
+          : s.pv > 0.05
+            ? { label: "running on solar", color: "text-green-600 bg-green-500/10" }
+            : { label: "idle", color: "text-muted-foreground bg-muted" };
 
   return (
     <div className={wrap}>
-      <div className="flex flex-wrap items-end justify-between gap-2 px-1">
+      <div className="flex flex-wrap items-start justify-between gap-2 px-1">
         <div>
           <h2 className="text-sm font-medium text-muted-foreground">
             Live energy flow — {output.name}
@@ -197,17 +202,23 @@ export default function DailyEnergyFlow() {
             </span>
           </p>
         </div>
-        <span
-          className={`rounded border px-2 py-1 text-xs ${
-            output.priceContext === "cheap"
-              ? "border-green-600/50 text-green-600"
-              : output.priceContext === "pricey"
-                ? "border-red-500/50 text-red-500"
-                : "border-border text-muted-foreground"
-          }`}
-        >
-          {priceLabel} · {s.price.toFixed(3)} €/kWh
-        </span>
+        <div className="rounded-xl border border-border bg-card px-4 py-3">
+          <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <Zap className="size-3.5" />
+            Right now
+          </div>
+          <div className="mt-1 text-3xl font-bold tabular-nums tracking-tight">
+            {s.price.toFixed(2)}
+            <span className="ml-1 text-sm font-normal text-muted-foreground">
+              €/kWh
+            </span>
+          </div>
+          <span
+            className={`mt-2 inline-block rounded-full px-3 py-1 text-sm font-medium ${supply.color}`}
+          >
+            {supply.label}
+          </span>
+        </div>
       </div>
 
       <svg
@@ -344,24 +355,66 @@ export default function DailyEnergyFlow() {
         })}
       </svg>
 
-      <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <Stat label="PV today" value={`${output.balance!.pv} kWh`} />
-        <Stat label="Consumed" value={`${output.balance!.consumption} kWh`} />
-        <Stat label="Grid import" value={`${output.balance!.gridImport} kWh`} />
-        <Stat
-          label="Self-consumption"
-          value={`${output.balance!.selfConsumption} %`}
-        />
+      <div className="mt-2 flex gap-2">
+        <div className="grid w-1/2 grid-cols-2 gap-2">
+          <div className="rounded-xl border border-amber-400/30 bg-gradient-to-br from-amber-400/10 to-amber-400/0 p-4">
+            <Metric
+              icon={Sun}
+              value={output.balance!.pv.toFixed(1)}
+              unit="kWh"
+              label="Solar yield"
+              color="text-amber-500"
+            />
+          </div>
+
+          <div className="rounded-xl border border-sky-500/30 bg-gradient-to-br from-sky-500/10 to-sky-500/0 p-4">
+            <Metric
+              icon={Home}
+              value={output.balance!.consumption.toFixed(1)}
+              unit="kWh"
+              label="Consumption"
+              color="text-sky-600"
+            />
+          </div>
+        </div>
+
+        <div className="flex w-1/2 items-center rounded-xl border border-green-500/30 bg-gradient-to-br from-green-500/15 to-emerald-500/5 p-4">
+          <Metric
+            icon={PiggyBank}
+            value={output.balance!.savedEur.toFixed(2)}
+            unit="€"
+            label="Saved today"
+            color="text-green-600"
+          />
+        </div>
       </div>
     </div>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Metric({
+  icon: Icon,
+  value,
+  unit,
+  label,
+  color,
+}: {
+  icon: LucideIcon;
+  value: string;
+  unit: string;
+  label: string;
+  color: string;
+}) {
   return (
-    <div className="rounded-lg border border-border bg-card p-3">
+    <div>
+      <Icon className={`size-4 ${color}`} />
+      <div className="mt-1.5 text-xl font-semibold tabular-nums">
+        {value}
+        <span className="ml-0.5 text-xs font-normal text-muted-foreground">
+          {unit}
+        </span>
+      </div>
       <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="mt-1 text-base font-semibold tabular-nums">{value}</div>
     </div>
   );
 }
