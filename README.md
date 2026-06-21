@@ -59,7 +59,7 @@ backed by Postgres via Prisma:
 - **Web:** Next.js 16, tRPC, React Query, Tailwind, shadcn/ui
 - **MCP:** Skybridge (Vite + React views), `@modelcontextprotocol/sdk`
 - **Data:** Prisma 7 with the `@prisma/adapter-pg` driver adapter, Neon Postgres
-- **Hosting:** Web on Vercel, MCP on Alpic, backed by Neon Postgres
+- **Hosting:** Web and MCP on Vercel, backed by Neon Postgres
 
 ## Project Structure
 
@@ -140,8 +140,7 @@ This starts both apps via Turborepo:
 Both apps share a single **Neon Postgres** database:
 
 - **Web** (`apps/web`) — standard Next.js build on **Vercel**.
-- **MCP** (`apps/mcp`) — `skybridge build`, deployed to **Alpic** via
-  `pnpm --filter @enpal/mcp deploy` (`alpic deploy`).
+- **MCP** (`apps/mcp`) — `skybridge build`, deployed to **Vercel**.
 
 ## Resources
 
