@@ -4,9 +4,11 @@ import { ArrowRight, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/copy-button";
+import { GitHubStars } from "@/components/github-stars";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const MCP_URL = "https://mcp.enpal.niklas.sh/mcp";
+const GITHUB_REPO = "nbialk/enpal-pulse";
 
 const prompts = [
   "Why was my bill higher this month?",
@@ -19,18 +21,28 @@ export default function Home() {
     <div className="flex min-h-full flex-col">
       <header className="sticky top-0 z-40 w-full border-b border-border bg-background/80 backdrop-blur-sm">
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-6">
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold tracking-tight">
-              Enpal Pulse
-            </span>
-            <span className="text-xs text-muted-foreground">
-              Smart Energy Companion
-            </span>
+          <div className="flex items-center gap-2.5">
+            <Image
+              src="/logo.png"
+              alt="Enpal Pulse"
+              width={36}
+              height={36}
+              className="size-9 rounded-lg"
+            />
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold tracking-tight">
+                Enpal Pulse
+              </span>
+              <span className="text-xs text-muted-foreground">
+                Smart Energy Companion
+              </span>
+            </div>
           </div>
           <div className="flex items-center gap-1.5">
             <Button asChild variant="ghost" size="sm">
               <Link href="/dashboard">Dashboard</Link>
             </Button>
+            <GitHubStars repo={GITHUB_REPO} />
             <ThemeToggle />
           </div>
         </div>
@@ -69,14 +81,21 @@ export default function Home() {
 
         {/* Connect MCP */}
         <section id="connect" className="mx-auto mt-20 max-w-2xl scroll-mt-20">
-          <div className="rounded-xl border border-border bg-card p-6 sm:p-8">
+          <div className="rounded-xl border border-border bg-card p-4 sm:p-5">
             <div className="flex items-center justify-center gap-3">
               <Image
                 src="/chatgpt.webp"
                 alt="ChatGPT"
                 width={36}
                 height={36}
-                className="size-9 rounded-lg"
+                className="size-9 rounded-lg dark:hidden"
+              />
+              <Image
+                src="/chatgpt-white.png"
+                alt="ChatGPT"
+                width={36}
+                height={36}
+                className="hidden size-9 rounded-lg dark:block"
               />
               <Image
                 src="/claude.png"

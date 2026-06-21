@@ -1,6 +1,5 @@
 "use client";
 
-import { MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -34,6 +33,10 @@ function tariffBadgeClass(type: string) {
     : "border-primary/20 bg-primary/10 text-primary";
 }
 
+function tariffDotClass(type: string) {
+  return type === "fixed_rate" ? "bg-brand" : "bg-primary";
+}
+
 export function HouseholdSelector({
   households,
   activeId,
@@ -49,25 +52,23 @@ export function HouseholdSelector({
     <Select value={activeId ?? undefined} onValueChange={onSelect}>
       <SelectTrigger
         size="default"
-        className="h-auto w-[260px] py-1.5 [&>span]:flex-1"
+        className="h-auto gap-2 border-transparent bg-transparent py-1.5 font-medium shadow-none hover:bg-accent/60 data-[state=open]:bg-accent/60"
       >
         <SelectValue placeholder="Select household">
           {active && (
             <span className="flex min-w-0 items-center gap-2">
-              <span className="min-w-0 flex-1 truncate text-left font-medium">
-                {active.name}
-              </span>
-              <Badge
-                variant="outline"
-                className={cn("font-normal", tariffBadgeClass(active.tariff.type))}
-              >
-                {tariffLabel(active.tariff.type)}
-              </Badge>
+              <span
+                className={cn(
+                  "size-2 shrink-0 rounded-full",
+                  tariffDotClass(active.tariff.type),
+                )}
+              />
+              <span className="min-w-0 truncate text-left">{active.name}</span>
             </span>
           )}
         </SelectValue>
       </SelectTrigger>
-      <SelectContent className="w-(--radix-select-trigger-width) min-w-[260px]">
+      <SelectContent className="min-w-[260px]">
         <SelectGroup>
           {households.map((h) => (
             <SelectItem
@@ -76,15 +77,7 @@ export function HouseholdSelector({
               className="py-2 pr-9"
             >
               <span className="flex w-full items-center justify-between gap-3">
-                <span className="flex min-w-0 flex-col gap-0.5">
-                  <span className="truncate font-medium leading-none">
-                    {h.name}
-                  </span>
-                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <MapPin className="size-3 shrink-0" />
-                    <span className="truncate">{h.city}</span>
-                  </span>
-                </span>
+                <span className="min-w-0 truncate font-medium">{h.name}</span>
                 <Badge
                   variant="outline"
                   className={cn(
