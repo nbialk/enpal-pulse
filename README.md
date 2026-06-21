@@ -3,7 +3,6 @@
 <p align="center">
   <a href="https://nextjs.org"><img src="https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=next.js&logoColor=white" alt="Next.js" /></a>
   <a href="https://docs.skybridge.tech"><img src="https://img.shields.io/badge/Skybridge-1.1.1-2563eb?style=flat-square&logo=react&logoColor=white" alt="Skybridge" /></a>
-  <a href="https://www.prisma.io"><img src="https://img.shields.io/badge/Prisma-7-2D3748?style=flat-square&logo=prisma&logoColor=white" alt="Prisma" /></a>
   <a href="https://enpal.niklas.sh"><img src="https://img.shields.io/badge/Demo-enpal.niklas.sh-7c3aed?style=flat-square" alt="Live demo" /></a>
 </p>
 
@@ -25,28 +24,26 @@ It ships as two surfaces over the same data:
 - **MCP server URL:** `https://mcp.enpal.niklas.sh/mcp`
 
 Add the MCP server URL to any compatible client (ChatGPT, Claude, etc.), then
-ask things like _"why was my bill higher in January?"_, _"when is the cheapest
-time to charge the car?"_, or _"explain my contract terms"_.
+ask things like _"why was my bill higher in January?"_, _"when should I charge
+my car today?"_, or _"what's my energy flow looking like right now?"_.
 
 ## MCP Tools
 
-| Tool | Type | Description |
+Each tool renders an interactive React view alongside its structured result.
+
+| Tool | View | Description |
 | --- | --- | --- |
-| **list-households** | view | Pick a household; shows assets + tariff. |
-| **household-overview** | view | Annual summary: bill, self-sufficiency, PV, assets. |
-| **monthly-bills** | view | Monthly bill + self-sufficiency trend. |
-| **energy-balance** | view | Daily PV vs. consumption vs. grid for a month. |
-| **insights** | view | Anomalies & nudges feed. |
-| **explain-contract** | tool | Contract terms in plain language. |
-| **cheapest-window** | tool | Cheapest dynamic-price hours in a date range. |
-| **best-time-to-run** | view | Best window today/tomorrow to run a flexible load (EV, washer, dishwasher, heat pump). |
+| **daily-energy-flow** | Daily energy flow | Live energy-flow snapshot for a household at a moment of the day: solar split into self-use, battery charging and export, plus grid import, battery discharge and SoC. |
+| **explain-bill** | Bill driver breakdown | Decomposes the euro difference between two months into drivers (energy cost, feed-in credit, base fee) and charts consumption by area (house, heat pump, EV). |
+| **best-time-to-run** | Recommended window | Best window today/tomorrow to run a flexible load (EV, washing machine, dishwasher, heat pump) — lowest cost on dynamic tariffs, most PV self-consumption on fixed. |
 
 All tools are read-only (`readOnlyHint: true`, `openWorldHint: false`).
 
 ## Data
 
-A synthetic full-year 2025 dataset for four households (HH-1001..HH-1004) at
-15-minute resolution, backed by Postgres via Prisma:
+A synthetic full-year 2025 dataset for four households (Familie Becker,
+Familie Schmidt, Familie Yilmaz, WG Sonnenallee) at 15-minute resolution,
+backed by Postgres via Prisma:
 
 - **Households, tariffs & contracts** — assets (PV, battery, heat pump, EV),
   dynamic vs. standard tariffs, full contract terms.
@@ -62,7 +59,7 @@ A synthetic full-year 2025 dataset for four households (HH-1001..HH-1004) at
 - **Web:** Next.js 16, tRPC, React Query, Tailwind, shadcn/ui
 - **MCP:** Skybridge (Vite + React views), `@modelcontextprotocol/sdk`
 - **Data:** Prisma 7 with the `@prisma/adapter-pg` driver adapter, Neon Postgres
-- **Hosting:** Vercel (both apps, region `fra1`), Neon Postgres (`eu-central-1`)
+- **Hosting:** Web on Vercel, MCP on Alpic, backed by Neon Postgres
 
 ## Project Structure
 
@@ -133,22 +130,18 @@ This starts both apps via Turborepo:
 | `pnpm build` | Build all apps and packages |
 | `pnpm lint` | Lint all packages |
 | `pnpm typecheck` | Type-check all packages |
+| `pnpm db:generate` | Generate the Prisma client |
 | `pnpm db:push` | Push the Prisma schema to the database |
 | `pnpm db:seed` | Seed the database with the 2025 dataset |
 | `pnpm db:studio` | Open Prisma Studio |
 
 ## Deployment
 
-Both apps are hosted on **Vercel** in region `fra1`, backed by a single **Neon
-Postgres** in `eu-central-1`:
+Both apps share a single **Neon Postgres** database:
 
-- **Web** (`apps/web`) — standard Next.js build.
-- **MCP** (`apps/mcp`) — `skybridge build` emits a Vercel
-  [Build Output API](https://vercel.com/docs/build-output-api) tree, deployed
-  with `vercel deploy --prebuilt`.
-
-CI in [`.github/workflows/deploy.yml`](./.github/workflows/deploy.yml) deploys
-both apps on push to `main` (path-filtered).
+- **Web** (`apps/web`) — standard Next.js build on **Vercel**.
+- **MCP** (`apps/mcp`) — `skybridge build`, deployed to **Alpic** via
+  `pnpm --filter @enpal/mcp deploy` (`alpic deploy`).
 
 ## Resources
 
