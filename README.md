@@ -1,4 +1,4 @@
-# Enpal Track — The Smart Energy Companion
+# Enpal Pulse — The Smart Energy Companion
 
 <p align="center">
   <a href="https://nextjs.org"><img src="https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=next.js&logoColor=white" alt="Next.js" /></a>

@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Enpal Track",
+  title: "Enpal Pulse",
   description: "Smart energy companion dashboard",
 };
 
