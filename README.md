@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="apps/web/public/banner.png" alt="Enpal Pulse" />
+</p>
+
 # Enpal Pulse — The Smart Energy Companion
 
 <p align="center">
