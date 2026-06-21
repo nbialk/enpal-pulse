@@ -3,7 +3,6 @@
 import {
   ArrowUpFromLine,
   Battery,
-  Gauge,
   Home,
   PiggyBank,
   Sparkles,
@@ -203,30 +202,6 @@ export function HouseholdInsights({ live }: { live: LiveSnapshot | null }) {
                   €
                 </span>
               </span>
-            </div>
-
-            {/* Self-consumption — the household success metric */}
-            <div className="rounded-lg border border-border p-3">
-              <div className="flex items-center justify-between gap-2">
-                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Gauge className="size-3.5" />
-                  Self-consumption
-                </span>
-                <span className="text-sm font-semibold tabular-nums">
-                  {num(balance.selfConsumption)}
-                  <span className="ml-0.5 text-xs font-normal text-muted-foreground">
-                    %
-                  </span>
-                </span>
-              </div>
-              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-border">
-                <div
-                  className="h-full rounded-full bg-brand transition-[width] duration-700 ease-out"
-                  style={{
-                    width: `${Math.min(Math.max(balance.selfConsumption, 0), 100)}%`,
-                  }}
-                />
-              </div>
             </div>
           </div>
         ) : (

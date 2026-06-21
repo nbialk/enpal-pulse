@@ -21,7 +21,7 @@ export default function Home() {
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-6">
           <div className="flex flex-col">
             <span className="text-sm font-semibold tracking-tight">
-              Enpal Track
+              Enpal Pulse
             </span>
             <span className="text-xs text-muted-foreground">
               Smart Energy Companion
@@ -121,8 +121,8 @@ export default function Home() {
 
       <footer className="border-t border-border">
         <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-2 px-6 py-6 text-xs text-muted-foreground sm:flex-row">
-          <span>Enpal Track — Smart Energy Companion</span>
-          <span>Next.js · Skybridge MCP · Prisma · Vercel</span>
+          <span>Enpal Pulse — Smart Energy Companion</span>
+          <span>AI x Energy Hackathon · 20–21 Juni 2026 · Enpal Track</span>
         </div>
       </footer>
     </div>
