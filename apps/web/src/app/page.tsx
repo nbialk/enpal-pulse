@@ -61,10 +61,9 @@ export default function Home() {
             The Smart Energy Companion
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-balance text-lg text-muted-foreground">
-            A household&apos;s energy reality — solar production, battery state,
-            heat-pump and EV load, grid flows, dynamic tariffs, and contract
-            terms — turned into one clear, intuitive view. Understandable and
-            actionable in plain language.
+            Enpal Pulse brings a household&apos;s solar production, battery
+            state, heat pump and EV load, grid flows, dynamic tariffs and
+            contract terms together in one place.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Button asChild size="lg">

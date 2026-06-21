@@ -2,19 +2,16 @@
   <img src="apps/web/public/banner.png" alt="Enpal Pulse" />
 </p>
 
-# Enpal Pulse — The Smart Energy Companion
-
 <p align="center">
   <a href="https://nextjs.org"><img src="https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=next.js&logoColor=white" alt="Next.js" /></a>
   <a href="https://docs.skybridge.tech"><img src="https://img.shields.io/badge/Skybridge-1.1.1-2563eb?style=flat-square&logo=react&logoColor=white" alt="Skybridge" /></a>
   <a href="https://pulse.niklas.sh"><img src="https://img.shields.io/badge/Demo-pulse.niklas.sh-7c3aed?style=flat-square" alt="Live demo" /></a>
 </p>
 
-Turns a household's messy energy reality — solar production, battery state,
-heat-pump and EV load, grid flows, dynamic tariffs, and contract terms — into
-one clear, intuitive view. Built for the **Enpal Smart Energy Companion**
-challenge: explain energy data in plain language, anticipate the user's
-questions, and nudge them toward smarter decisions.
+Enpal Pulse brings a household's solar production, battery state, heat pump and
+EV load, grid flows, dynamic tariffs and contract terms together in one place.
+Built for the **Enpal Smart Energy Companion** challenge, it answers everyday
+energy questions in plain language and helps you decide when to use power.
 
 It ships as two surfaces over the same data:
 
