@@ -177,17 +177,6 @@ export default function DailyEnergyFlow() {
     ev: s.ev,
   };
 
-  const supply =
-    s.batteryDischarge > 0.05
-      ? { label: "running on battery", color: "text-green-600 bg-green-500/10" }
-      : s.gridExport > 0.05
-        ? { label: "exporting to grid", color: "text-emerald-600 bg-emerald-500/10" }
-        : s.gridImport > 0.05
-          ? { label: "drawing from grid", color: "text-red-500 bg-red-500/10" }
-          : s.pv > 0.05
-            ? { label: "running on solar", color: "text-green-600 bg-green-500/10" }
-            : { label: "idle", color: "text-muted-foreground bg-muted" };
-
   return (
     <div className={wrap}>
       <div className="flex flex-wrap items-start justify-between gap-2 px-1">
@@ -201,23 +190,6 @@ export default function DailyEnergyFlow() {
               {output.dateLabel}
             </span>
           </p>
-        </div>
-        <div className="rounded-xl border border-border bg-card px-4 py-3">
-          <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            <Zap className="size-3.5" />
-            Right now
-          </div>
-          <div className="mt-1 text-3xl font-bold tabular-nums tracking-tight">
-            {s.price.toFixed(2)}
-            <span className="ml-1 text-sm font-normal text-muted-foreground">
-              €/kWh
-            </span>
-          </div>
-          <span
-            className={`mt-2 inline-block rounded-full px-3 py-1 text-sm font-medium ${supply.color}`}
-          >
-            {supply.label}
-          </span>
         </div>
       </div>
 
